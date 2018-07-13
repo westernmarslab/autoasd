@@ -3,12 +3,15 @@ from pywinauto import findwindows
 from pywinauto import mouse
 from pywinauto import keyboard
 
+#print('foo')
 
 class Menu:
 
-    def __init__(self, spec):
-        spec.ThunderRT6PictureBox12.draw_outline()
-        self.spec=spec
+    def __init__(self, pid, spec):
+        #spec.print_control_identifiers()
+        #spec.ThunderRT6PictureBox38.draw_outline()
+        print('foo')
+        self.pid=pid
         self.display_delta_x=125
         self.control_delta_x=180
         self.GPS_delta_x=235
@@ -25,3 +28,4 @@ class Menu:
         for i in range(10):
             keyboard.SendKeys('{DOWN}')
         keyboard.SendKeys('{ENTER}')
+        
