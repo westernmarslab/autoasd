@@ -2,22 +2,37 @@ from pywinauto import Application
 from pywinauto import keyboard
 from pywinauto import findwindows
 import pyautogui
+from pywinauto import mouse
 import imp
 import time
+import datetime
 
 class RS3Controller:
 
-    def __init__(self, running=False):
+    def __init__(self, share_loc, logdir, running=False):
+        self.share_loc=share_loc
         self.app=Application()
-        if running:
-            app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
-        else:
-            app=Application().start("C:\Program Files\ASD\RS3\RS3.exe")
-
-        self.spec=app.ThunderRT6Form
+        try:
+            self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
+        except:
+            self.app=Application().start("C:\Program Files\ASD\RS3\RS3.exe")
+        print(str(datetime.datetime.now())+'\tConnected to RS3')
+        self.spec=None
+        self.spec_connected=False
+        elements=findwindows.find_elements(process=self.app.process)
+        for el in elements:
+            if el.name=='RS³   18483 1': 
+                self.spec=self.app['RS³   18483 1']
+                self.spec_connected=True
+            elif self.spec==None and el.name=='RS³': self.spec=self.app['RS³']
+        print('RS3 connected to spectrometer: '+str(self.spec_connected))
+        self.logdir=logdir
+        #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
+        #self.log=open(share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M),'w')
+        self.spec=self.app.ThunderRT6Form
         self.spec.draw_outline()
-        self.pid=app.process
-        #self.menu=RS3Menu(self.pid,self.spec)
+        self.pid=self.app.process
+        self.menu=RS3Menu(self.spec)
         
     def take_spectrum(self):
         self.spec.set_focus()
@@ -25,24 +40,26 @@ class RS3Controller:
         
     def white_reference(self):
         self.spec.set_focus()
-        keyboard.send_keys('{F4}')
+        keyboard.SendKeys('{F4}')
         
     def optimize(self):
         self.spec.set_focus()
-        keyboard.send_keys('^O')
+        keyboard.SendKeys('^O')
         
-    def spectrum_save(self, path, base, start_num, numfiles=1, interval=0, comment=None, new_file_format=False):
+    def spectrum_save(self, path, base, startnum, numfiles=1, interval=0, comment=None, new_file_format=False):
+        print(path)
         try:
             self.menu.open_save_dialog()
         except:
             print('failed to open save dialog. Check connection with spetrometer.')
-        save=wait_for_window(self.pid, 'Spectrum Save', 3)
+            return
+        save=self.app['Spectrum Save']#self.wait_for_window('Spectrum Save', 10)
         if save==None: print('ERROR: Failed to open save dialog')
-        
-    
-        spec=save.ThunderRT6Form
-        spec.Edit6.set_edit_text(path)
-        spec.ThunderRT6PictureBoxDC3.click_input()
+        save.Edit6.set_edit_text(path)
+        save.Edit7.set_edit_text('')
+        save.Edit5.set_edit_text(base)
+        save.Edit4.set_edit_text(startnum)
+        save.ThunderRT6PictureBoxDC3.click_input()
         elements=findwindows.find_elements(process=self.pid)
         for el in elements:
             if el.name=='Message':
@@ -50,27 +67,28 @@ class RS3Controller:
         
 
 class ViewSpecProController:
-    def __init__(self, running=False):
+    def __init__(self, logdir, running=False):
         self.app=Application()
-        if running:
+        self.logdir=logdir
+        try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
-        else:
+        except:
             self.app=Application().start("C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
         self.spec=self.app['ViewSpec Pro    Version 6.2'] 
         self.pid=self.app.process
     
     def process(self, input_path, output_path, tsv_name):
+        self.spec.menu_select('File -> Close')
         self.open_files(input_path)
+        time.sleep(2)
         self.set_save_directory(output_path)
         self.splice_correction()
         self.ascii_export(output_path, tsv_name)
         self.spec.menu_select('File -> Close')
-        # if path_el[0]=='C:'or path_el[0]=='c:':
-        #     os.system('dir')
     
     def open_files(self, path):
         self.spec.menu_select('File -> Open')
-        open=self.app['Select Input File(s)']
+        open=wait_for_window(app,'Select Input File(s)')
         open.set_focus()
         open['Address Band Root'].toolbar.button(0).click()
         #open['Address Band Root'].edit.set_edit_text(path)
@@ -86,7 +104,6 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
     
     def set_save_directory(self,path):
-        time.sleep(2)
         self.spec.menu_select('Setup -> Output Directory')
         save=self.app['New Directory Path']
         path_el=path.split('\\')
@@ -141,16 +158,6 @@ class ViewSpecProController:
     def select_all(self):
         for i in range(self.spec.ListBox.ItemCount()):
             self.spec.ListBox.select(i)
-    
-    def wait_for_window(self, title, timeout):
-        t0=time.clock()
-        elements=findwindows.find_elements(process=self.pid)
-        spec=None
-        while self.app==None and time.clock()-t0<timeout:
-            for el in elements:
-                if el.name==title:
-                    spec=self.app[title]#=Application().connect(handle=el.handle)
-        return spec
         
     def select_item(self,rectangle):
         #set start position at center top of listbox
@@ -168,18 +175,24 @@ class ViewSpecProController:
 
 class RS3Menu:
 
-    def __init__(self, pid, spec):
-        #spec.print_control_identifiers()
-        #spec.ThunderRT6PictureBox38.draw_outline()
-        print('foo')
-        self.pid=pid
+    def __init__(self, spec):
+        #self.spec.print_control_identifiers()
+        self.spec=spec
         self.display_delta_x=125
         self.control_delta_x=180
         self.GPS_delta_x=235
         self.help_delta_x=270
-        self.x_left=spec.rectangle().left
-        y_form_top=spec.rectangle().top
-        y_box_top=spec.ThunderRTCFormPictureBox12.rectangle().top
+        self.x_left=self.spec.rectangle().left
+        y_form_top=self.spec.rectangle().top
+        y_box_top=y_form_top+39
+        # try:
+        #     y_box_top=self.spec.ThunderRTCFormPictureBox10.rectangle().top
+        # except:
+        #     try:
+        #         y_box_top=self.spec.ThunderRTCFormPictureBox11.rectangle().top
+        #     except:
+        #         y_box_top=self.spec.ThunderRTCFormPictureBox12.rectangle().top
+
         self.y_menu=int(y_box_top+(y_form_top-y_box_top)/4)
 
         
@@ -189,3 +202,14 @@ class RS3Menu:
         for i in range(10):
             keyboard.SendKeys('{DOWN}')
         keyboard.SendKeys('{ENTER}')
+        
+def wait_for_window(app, title, timeout=5):
+    spec=app[title]
+    i=0
+    while spec.exists()==False and i<timeout:
+        try:
+            spec=self.app[title]
+        except:
+            i=i+1
+            time.sleep(1)
+    return spec
