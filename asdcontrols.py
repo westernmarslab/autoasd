@@ -6,12 +6,17 @@ from pywinauto import mouse
 import imp
 import time
 import datetime
+import os
 
 class RS3Controller:
 
     def __init__(self, share_loc, logdir, running=False):
         self.share_loc=share_loc
         self.app=Application()
+        self.save_dir=''
+        self.basename=''
+        self.nextnum=None
+        self.hopefully_saved_files=[]
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
         except:
@@ -37,6 +42,14 @@ class RS3Controller:
     def take_spectrum(self):
         self.spec.set_focus()
         pyautogui.press('space')
+        if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
+            hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
+            self.nextnum=str(int(self.nextnum)+1)
+            while len(self.nextnum)<3:
+                self.nextnum='0'+self.nextnum
+            self.hopefully_saved_files.append(hopeful)
+        else: self.hopefully_saved_files.append('unknown')
+        
         
     def white_reference(self):
         self.spec.set_focus()
@@ -46,24 +59,35 @@ class RS3Controller:
         self.spec.set_focus()
         keyboard.SendKeys('^O')
         
-    def spectrum_save(self, path, base, startnum, numfiles=1, interval=0, comment=None, new_file_format=False):
-        print(path)
-        try:
-            self.menu.open_save_dialog()
-        except:
-            print('failed to open save dialog. Check connection with spetrometer.')
-            return
+    def spectrum_save(self, dir, base, startnum, numfiles=1, interval=0, comment=None, new_file_format=False):
+        self.save_dir=dir
+        self.basename=base
+        self.nextnum=str(startnum)
+        while len(self.nextnum)<3:
+            self.nextnum='0'+self.nextnum
+        save=self.app['Spectrum Save']
+        if save.exists()==False:
+            try:
+                self.menu.open_save_dialog()
+            except:
+                print('failed to open save dialog. Check connection with spetrometer.')
+                return
         save=self.app['Spectrum Save']#self.wait_for_window('Spectrum Save', 10)
-        if save==None: print('ERROR: Failed to open save dialog')
-        save.Edit6.set_edit_text(path)
+        if save.exists()==False: print('ERROR: Failed to open save dialog')
+        save.Edit6.set_edit_text(dir)
         save.Edit7.set_edit_text('')
         save.Edit5.set_edit_text(base)
         save.Edit4.set_edit_text(startnum)
-        save.ThunderRT6PictureBoxDC3.click_input()
-        elements=findwindows.find_elements(process=self.pid)
-        for el in elements:
-            if el.name=='Message':
-                print('wait for input')
+        save.set_focus()
+        save.ThunderRT6PictureBoxDC2.click_input()
+        message=self.app['Message']
+        if message.exists():
+            self.app['Message'].set_focus()
+            keyboard.SendKeys('{ENTER}')
+            
+        message=self.app['Message']
+        if message.exists():
+            pyautogui.alert('addess message in RS3 to continue')
         
 
 class ViewSpecProController:
@@ -78,6 +102,10 @@ class ViewSpecProController:
         self.pid=self.app.process
     
     def process(self, input_path, output_path, tsv_name):
+        files=os.listdir(output_path)
+        for file in files:
+            if '.sco' in file:
+                os.remove(output_path+'\\'+file)
         self.spec.menu_select('File -> Close')
         self.open_files(input_path)
         time.sleep(2)
@@ -85,10 +113,14 @@ class ViewSpecProController:
         self.splice_correction()
         self.ascii_export(output_path, tsv_name)
         self.spec.menu_select('File -> Close')
+        files=os.listdir(output_path)
+        for file in files:
+            if '.sco' in file:
+                os.remove(output_path+'\\'+file)
     
     def open_files(self, path):
         self.spec.menu_select('File -> Open')
-        open=wait_for_window(app,'Select Input File(s)')
+        open=wait_for_window(self.app,'Select Input File(s)')
         open.set_focus()
         open['Address Band Root'].toolbar.button(0).click()
         #open['Address Band Root'].edit.set_edit_text(path)
@@ -197,6 +229,9 @@ class RS3Menu:
 
         
     def open_save_dialog(self):
+        if self.spec.exists()==False:
+            print('RS3 not found. Failed to open save menu')
+            return
         self.spec.set_focus()
         mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
         for i in range(10):
