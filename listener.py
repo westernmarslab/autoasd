@@ -51,20 +51,31 @@ def main():
         os.remove(write_command_loc+'\\'+file)
         
     spec_controller=RS3Controller(share_loc, logdir, running=RS3_running)
-    process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
+    #process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
     
     files0=os.listdir(read_command_loc)
     print('time to listen!')
     data_files_to_ignore=[]
     while True:
-        if spec_controller.save_dir!='':
+        data_files=[]
+        try:
             data_files=os.listdir(spec_controller.save_dir)
-            for file in data_files:
-                if file not in data_files_to_ignore:
-                    if file not in spec_controller.hopefully_saved_files:
-                        with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
-                                pass
-                        #cmdnum+=1
+        except:
+            pass
+        expected_files=[]
+
+        for file in spec_controller.hopefully_saved_files:
+            expected_files.append(file.split('\\')[-1])
+        for file in data_files:
+            if file not in data_files_to_ignore:
+                if file not in expected_files:
+                    with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
+                            pass
+                    
+                    cmdnum+=1
+                    data_files_to_ignore.append(file)
+
+            #print("this is a sloppy way to catch an exception when spec_controller.save_dir doesn't exist")
                             
                         
         
@@ -72,13 +83,16 @@ def main():
         if files!=files0:
             for file in files:
                 if file not in files0:
-                    print('here is the file and what it is parsed to:')
-                    print(file)
                     cmd,params=filename_to_cmd(file)
-                    print(params)
-                    os.remove(read_command_loc+'\\'+file)
+                    #os.remove(read_command_loc+'\\'+file)
                     if 'spectrum' in cmd: 
+                        print('spectrum command received!')
                         old=len(spec_controller.hopefully_saved_files)
+                        if spec_controller.save_dir=='':
+                            with open(write_command_loc+'\\noconfig'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                            continue
                         spec_controller.take_spectrum()
                         wait=True
                         while wait:
@@ -91,20 +105,16 @@ def main():
                         t0=time.clock()
                         t=time.clock()
                         if filename != 'unknown':
-                            print(filename)
                             while t-t0<timeout and saved==False:
                                 saved=os.path.isfile(filename)
                                 time.sleep(1)
                                 t=time.clock()
                         print('file saved and found?:'+ str(saved))
-                        print('here is the filename I am trying to put in a command string:')
-                        print(filename)
                         if saved:
                             filestring=cmd_to_filename('savedfile'+str(cmdnum),[filename])
                         else:
+                            spec_controller.hopefully_saved_files.pop(-1)
                             filestring=cmd_to_filename('failedtosavefile'+str(cmdnum),[filename])
-                        print('here is my command string:')
-                        print(filestring)
                             
                         with open(write_command_loc+'\\'+filestring,'w+') as f:
                             pass
@@ -113,9 +123,19 @@ def main():
                         save_path=params[0]
                         basename=params[1]
                         startnum=params[2]
+                        spec_controller.spectrum_save(save_path, basename, startnum)
                         try:
-                            spec_controller.spectrum_save(save_path, basename, startnum)
+                            # spec_controller.spectrum_save(save_path, basename, startnum)
+                            # print('time to exit!')
+                            # exit()
+                            pass
                         except:
+                            with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                            
+                        if spec_controller.failed_to_open:
+                            spec_controller.failed_to_open=False
                             with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1

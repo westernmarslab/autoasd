@@ -17,6 +17,7 @@ class RS3Controller:
         self.basename=''
         self.nextnum=None
         self.hopefully_saved_files=[]
+        self.failed_to_open=False
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
         except:
@@ -24,13 +25,15 @@ class RS3Controller:
         print(str(datetime.datetime.now())+'\tConnected to RS3')
         self.spec=None
         self.spec_connected=False
-        elements=findwindows.find_elements(process=self.app.process)
-        for el in elements:
-            if el.name=='RS³   18483 1': 
-                self.spec=self.app['RS³   18483 1']
-                self.spec_connected=True
-            elif self.spec==None and el.name=='RS³': self.spec=self.app['RS³']
-        print('RS3 connected to spectrometer: '+str(self.spec_connected))
+        while not self.spec_connected:
+            print('Waiting for RS³ to connect to spectrometer.')
+            elements=findwindows.find_elements(process=self.app.process)
+            for el in elements:
+                if el.name=='RS³   18483 1': 
+                    self.spec=self.app['RS³   18483 1']
+                    self.spec_connected=True
+            time.sleep(1)
+        print('RS³ connected to spectrometer.')
         self.logdir=logdir
         #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
         #self.log=open(share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M),'w')
@@ -42,6 +45,7 @@ class RS3Controller:
     def take_spectrum(self):
         self.spec.set_focus()
         pyautogui.press('space')
+        time.sleep(1)
         if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
             hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
             self.nextnum=str(int(self.nextnum)+1)
@@ -63,31 +67,37 @@ class RS3Controller:
         self.save_dir=dir
         self.basename=base
         self.nextnum=str(startnum)
+
         while len(self.nextnum)<3:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
-            try:
-                self.menu.open_save_dialog()
-            except:
-                print('failed to open save dialog. Check connection with spetrometer.')
-                return
-        save=self.app['Spectrum Save']#self.wait_for_window('Spectrum Save', 10)
-        if save.exists()==False: print('ERROR: Failed to open save dialog')
+            self.menu.open_save_dialog()
+        save=self.app['Spectrum Save']
+        if save.exists()==False: 
+            print('ERROR: Failed to open save dialog')
+            self.failed_to_open=True
+            return
         save.Edit6.set_edit_text(dir)
         save.Edit7.set_edit_text('')
         save.Edit5.set_edit_text(base)
         save.Edit4.set_edit_text(startnum)
-        save.set_focus()
-        save.ThunderRT6PictureBoxDC2.click_input()
+        if save.is_enabled():
+            save.set_focus()
+            print('ok maybe these are not good keys')
+            keyboard.SendKeys('{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{ENTER}')
+        else:
+            raise Exception('Save dialog not enabled')
+        #save.ThunderRT6PictureBoxDC3.click_input()
+        
         message=self.app['Message']
         if message.exists():
             self.app['Message'].set_focus()
             keyboard.SendKeys('{ENTER}')
             
-        message=self.app['Message']
-        if message.exists():
-            pyautogui.alert('addess message in RS3 to continue')
+        # message=self.app['Message']
+        # if message.exists():
+        #     pyautogui.alert('addess message in RS3 to continue')
         
 
 class ViewSpecProController:
@@ -208,7 +218,6 @@ class ViewSpecProController:
 class RS3Menu:
 
     def __init__(self, spec):
-        #self.spec.print_control_identifiers()
         self.spec=spec
         self.display_delta_x=125
         self.control_delta_x=180
@@ -233,6 +242,7 @@ class RS3Menu:
             print('RS3 not found. Failed to open save menu')
             return
         self.spec.set_focus()
+        #print('I think the left side of the window is: '+str(self.x_left))
         mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
         for i in range(10):
             keyboard.SendKeys('{DOWN}')
