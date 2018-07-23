@@ -14,6 +14,7 @@ timeout=5
 if dev: 
     sys.path.append('c:/users/rs3admin/hozak/python/autoasd/')
     #os.system('del C:\\Kathleen\commands\*')
+    os.chdir('c:/users/rs3admin/hozak/python/autoasd')
 
 import asdcontrols
 
@@ -51,7 +52,7 @@ def main():
         os.remove(write_command_loc+'\\'+file)
         
     spec_controller=RS3Controller(share_loc, logdir, running=RS3_running)
-    #process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
+    process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
     
     files0=os.listdir(read_command_loc)
     print('time to listen!')
@@ -67,8 +68,10 @@ def main():
         for file in spec_controller.hopefully_saved_files:
             expected_files.append(file.split('\\')[-1])
         for file in data_files:
+            #print('This file is here:'+file)
             if file not in data_files_to_ignore:
                 if file not in expected_files:
+                    #print('And it is not expected.')
                     with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
                             pass
                     
@@ -93,14 +96,26 @@ def main():
                                 pass
                             cmdnum+=1
                             continue
-                        spec_controller.take_spectrum()
+                        filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
+                        exists=False
+                        if os.path.isfile(filename):
+                            exists=True
+                            with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
+                                pass
+                            print('I should make it here if the file exists')
+                            continue
+                        print('I should not make it here if the file exists')
+                        print('Exists?'+str(exists))
+                        if not exists: spec_controller.take_spectrum()
+                        else:
+                            print('it exists!!!')
+                            continue
                         wait=True
                         while wait:
                             time.sleep(1)
                             new=len(spec_controller.hopefully_saved_files)
                             if new>old:
                                 wait=False
-                        filename=spec_controller.hopefully_saved_files[-1]
                         saved=False
                         t0=time.clock()
                         t=time.clock()
@@ -124,21 +139,17 @@ def main():
                         basename=params[1]
                         startnum=params[2]
                         spec_controller.spectrum_save(save_path, basename, startnum)
-                        try:
-                            # spec_controller.spectrum_save(save_path, basename, startnum)
-                            # print('time to exit!')
-                            # exit()
-                            pass
-                        except:
-                            with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
-                                pass
-                            cmdnum+=1
                             
                         if spec_controller.failed_to_open:
                             spec_controller.failed_to_open=False
                             with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                            skip_spectrum()
+                            continue
+                        else:
+                            with open(write_command_loc+'\\saveconfigsuccess'+str(cmdnum),'w+') as f:
+                                pass
                             
                     elif 'wr' in cmd: spec_controller.white_reference()
                     elif 'opt' in cmd: spec_controller.optimize()
@@ -179,6 +190,17 @@ def cmd_to_filename(cmd, params):
         filename=filename+'&'+param.replace('\\','+').replace(':','=')
         i=i+1
     return filename
-    
+
+def skip_spectrum():
+    print('I want to remove a spec command')
+    files=os.listdir(read_command_loc)
+    print(files)
+    for file in files:
+        if 'spectrum' in file:
+            os.remove(read_command_loc+'\\'+file)
+            time.sleep(0.5)
+            print('yay I skipped a spectrum')
+            break
+
 if __name__=='__main__':
     main()

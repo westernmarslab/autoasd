@@ -21,6 +21,7 @@ class RS3Controller:
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
         except:
+            print('Starting RS³')
             self.app=Application().start("C:\Program Files\ASD\RS3\RS3.exe")
         print(str(datetime.datetime.now())+'\tConnected to RS3')
         self.spec=None
@@ -40,19 +41,19 @@ class RS3Controller:
         self.spec=self.app.ThunderRT6Form
         self.spec.draw_outline()
         self.pid=self.app.process
-        self.menu=RS3Menu(self.spec)
+        self.menu=RS3Menu(self.app)
         
     def take_spectrum(self):
         self.spec.set_focus()
         pyautogui.press('space')
-        time.sleep(1)
-        if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
-            hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
-            self.nextnum=str(int(self.nextnum)+1)
-            while len(self.nextnum)<3:
-                self.nextnum='0'+self.nextnum
-            self.hopefully_saved_files.append(hopeful)
-        else: self.hopefully_saved_files.append('unknown')
+        #time.sleep(1)
+        #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
+        hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
+        self.nextnum=str(int(self.nextnum)+1)
+        while len(self.nextnum)<3:
+            self.nextnum='0'+self.nextnum
+        self.hopefully_saved_files.append(hopeful)
+        #else: self.hopefully_saved_files.append('unknown')
         
         
     def white_reference(self):
@@ -82,12 +83,35 @@ class RS3Controller:
         save.Edit7.set_edit_text('')
         save.Edit5.set_edit_text(base)
         save.Edit4.set_edit_text(startnum)
-        if save.is_enabled():
-            save.set_focus()
-            print('ok maybe these are not good keys')
-            keyboard.SendKeys('{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{ENTER}')
-        else:
-            raise Exception('Save dialog not enabled')
+        #if save.is_enabled():
+        save.set_focus()
+            #print('ok maybe these are not good keys')
+            #keyboard.SendKeys('{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{ENTER}')
+        okfound=False
+        controls=[save.ThunderRT6PictureBoxDC3,save.ThunderRT6PictureBoxDC2]
+        for control in controls:
+            control.draw_outline()
+            rect=control.rectangle()
+            time.sleep(0.5)
+            loc=find_image(rect, 'img/rs3ok.png')
+            if loc != None:
+                #print('ok button found in '+str(control))
+                #save.set_focus()
+                control.click_input()
+
+                okfound=True
+                break
+            time.sleep(2)
+            print('******************')
+            print('here is the result for the next control printed twice')
+            print(find_image(rect, 'img/rs3ok.png'))
+            print(loc)
+            print('***************')
+        if not okfound:
+            raise Exception('Ok button not found')
+            
+        # else:
+        #     raise Exception('Save dialog not enabled')
         #save.ThunderRT6PictureBoxDC3.click_input()
         
         message=self.app['Message']
@@ -107,9 +131,11 @@ class ViewSpecProController:
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
         except:
+            print('Starting ViewSpec Pro')
             self.app=Application().start("C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
         self.spec=self.app['ViewSpec Pro    Version 6.2'] 
         self.pid=self.app.process
+        if self.spec.exists(): print('Connected to ViewSpec Pro')
     
     def process(self, input_path, output_path, tsv_name):
         files=os.listdir(output_path)
@@ -217,32 +243,29 @@ class ViewSpecProController:
 
 class RS3Menu:
 
-    def __init__(self, spec):
-        self.spec=spec
+    def __init__(self, app):
+        self.app=app
         self.display_delta_x=125
         self.control_delta_x=180
         self.GPS_delta_x=235
         self.help_delta_x=270
-        self.x_left=self.spec.rectangle().left
-        y_form_top=self.spec.rectangle().top
-        y_box_top=y_form_top+39
-        # try:
-        #     y_box_top=self.spec.ThunderRTCFormPictureBox10.rectangle().top
-        # except:
-        #     try:
-        #         y_box_top=self.spec.ThunderRTCFormPictureBox11.rectangle().top
-        #     except:
-        #         y_box_top=self.spec.ThunderRTCFormPictureBox12.rectangle().top
 
-        self.y_menu=int(y_box_top+(y_form_top-y_box_top)/4)
 
         
     def open_save_dialog(self):
+        self.spec=self.app['RS³   18483 1']
         if self.spec.exists()==False:
             print('RS3 not found. Failed to open save menu')
             return
+        self.x_left=self.spec.rectangle().left
+        y_form_top=self.spec.rectangle().top
+        y_box_top=y_form_top+39
+        self.y_menu=int(y_box_top+(y_form_top-y_box_top)/4)
+
+        print(self.spec.rectangle())
+        print('I think the left side of the window is: '+str(self.x_left))
+        
         self.spec.set_focus()
-        #print('I think the left side of the window is: '+str(self.x_left))
         mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
         for i in range(10):
             keyboard.SendKeys('{DOWN}')
@@ -258,3 +281,8 @@ def wait_for_window(app, title, timeout=5):
             i=i+1
             time.sleep(1)
     return spec
+    
+def find_image(rect, image):
+    screenshot=pyautogui.screenshot(region=(rect.left, rect.top, rect.width(), rect.height()))
+    location=pyautogui.locate(image, screenshot)
+    return location
