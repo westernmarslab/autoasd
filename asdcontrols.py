@@ -83,36 +83,23 @@ class RS3Controller:
         save.Edit7.set_edit_text('')
         save.Edit5.set_edit_text(base)
         save.Edit4.set_edit_text(startnum)
-        #if save.is_enabled():
-        save.set_focus()
-            #print('ok maybe these are not good keys')
-            #keyboard.SendKeys('{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{TAB}{ENTER}')
-        okfound=False
-        controls=[save.ThunderRT6PictureBoxDC3,save.ThunderRT6PictureBoxDC2]
-        for control in controls:
-            control.draw_outline()
-            rect=control.rectangle()
-            time.sleep(0.5)
-            loc=find_image(rect, 'img/rs3ok.png')
-            if loc != None:
-                #print('ok button found in '+str(control))
-                #save.set_focus()
-                control.click_input()
 
-                okfound=True
+        save.set_focus()
+        okfound=False
+        controls=[save.ThunderRT6PictureBoxDC3,save.ThunderRT6PictureBoxDC2, save.ThunderRT6PictureBox]
+        while True:
+            for control in controls:
+                control.draw_outline()
+                rect=control.rectangle()
+                loc=find_image('img/rs3ok.png', rect=rect)
+                if loc != None:
+                    control.click_input()
+                    okfound=True
+                    break
+            if okfound:
                 break
-            time.sleep(2)
-            print('******************')
-            print('here is the result for the next control printed twice')
-            print(find_image(rect, 'img/rs3ok.png'))
-            print(loc)
-            print('***************')
-        if not okfound:
-            raise Exception('Ok button not found')
-            
-        # else:
-        #     raise Exception('Save dialog not enabled')
-        #save.ThunderRT6PictureBoxDC3.click_input()
+            print('searching for OK button')
+            time.sleep(0.5)
         
         message=self.app['Message']
         if message.exists():
@@ -253,20 +240,29 @@ class RS3Menu:
 
         
     def open_save_dialog(self):
+        print('opening a save dialog!')
         self.spec=self.app['RS³   18483 1']
         if self.spec.exists()==False:
             print('RS3 not found. Failed to open save menu')
             return
-        self.x_left=self.spec.rectangle().left
-        y_form_top=self.spec.rectangle().top
-        y_box_top=y_form_top+39
-        self.y_menu=int(y_box_top+(y_form_top-y_box_top)/4)
-
-        print(self.spec.rectangle())
-        print('I think the left side of the window is: '+str(self.x_left))
-        
+        x_left=self.spec.rectangle().left
+        y_top=self.spec.rectangle().top
+        width=300
+        height=50
         self.spec.set_focus()
-        mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
+        loc=None
+        while True:
+            loc=find_image('img/rs3control.png',loc=(x_left, y_top, width, height))
+            if loc !=None:
+                break
+            print('searching for control')
+            time.sleep(0.5)
+
+        x=loc[0]
+        y=loc[1]
+    
+        mouse.click(coords=(x,y))
+        #mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
         for i in range(10):
             keyboard.SendKeys('{DOWN}')
         keyboard.SendKeys('{ENTER}')
@@ -282,7 +278,10 @@ def wait_for_window(app, title, timeout=5):
             time.sleep(1)
     return spec
     
-def find_image(rect, image):
-    screenshot=pyautogui.screenshot(region=(rect.left, rect.top, rect.width(), rect.height()))
+def find_image(image, rect=None, loc=None):
+    if rect != None:
+        screenshot=pyautogui.screenshot(region=(rect.left, rect.top, rect.width(), rect.height()))
+    else:
+        screenshot=pyautogui.screenshot(region=loc)
     location=pyautogui.locate(image, screenshot)
     return location

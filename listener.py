@@ -84,8 +84,11 @@ def main():
         
         files=os.listdir(read_command_loc)
         if files!=files0:
+            print('***************')
+            print('here are the new files')
             for file in files:
                 if file not in files0:
+                    print(file)
                     cmd,params=filename_to_cmd(file)
                     #os.remove(read_command_loc+'\\'+file)
                     if 'spectrum' in cmd: 
@@ -102,28 +105,23 @@ def main():
                             exists=True
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
                                 pass
-                            print('I should make it here if the file exists')
+                            files0=files
                             continue
-                        print('I should not make it here if the file exists')
-                        print('Exists?'+str(exists))
-                        if not exists: spec_controller.take_spectrum()
-                        else:
-                            print('it exists!!!')
-                            continue
+                        
+                        spec_controller.take_spectrum()
                         wait=True
                         while wait:
-                            time.sleep(1)
+                            time.sleep(0.2)
                             new=len(spec_controller.hopefully_saved_files)
                             if new>old:
                                 wait=False
                         saved=False
                         t0=time.clock()
                         t=time.clock()
-                        if filename != 'unknown':
-                            while t-t0<timeout and saved==False:
-                                saved=os.path.isfile(filename)
-                                time.sleep(1)
-                                t=time.clock()
+                        while t-t0<timeout and saved==False:
+                            saved=os.path.isfile(filename)
+                            time.sleep(0.2)
+                            t=time.clock()
                         print('file saved and found?:'+ str(saved))
                         if saved:
                             filestring=cmd_to_filename('savedfile'+str(cmdnum),[filename])
@@ -138,6 +136,17 @@ def main():
                         save_path=params[0]
                         basename=params[1]
                         startnum=params[2]
+                        filename=save_path+'\\'+basename+'.'+startnum
+                        exists=False
+                        if os.path.isfile(filename):
+                            exists=True
+                            with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
+                                pass
+                            print('I should make it here if the file exists and I am configuring')
+                            #files0=files
+                            #continue
+                            skip_spectrum()
+                            continue
                         spec_controller.spectrum_save(save_path, basename, startnum)
                             
                         if spec_controller.failed_to_open:
@@ -145,8 +154,9 @@ def main():
                             with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                            #files0=files
+                            #continue
                             skip_spectrum()
-                            continue
                         else:
                             with open(write_command_loc+'\\saveconfigsuccess'+str(cmdnum),'w+') as f:
                                 pass
@@ -171,8 +181,7 @@ def main():
                     elif 'rmfile' in cmd:
                         print('not actually removing anything!')
                             
-            files0=files
-        time.sleep(1)
+        files0=files
         
 def filename_to_cmd(filename):
     cmd=filename.split('&')[0]
@@ -192,15 +201,14 @@ def cmd_to_filename(cmd, params):
     return filename
 
 def skip_spectrum():
-    print('I want to remove a spec command')
+    time.sleep(3)
+    print('remove spec commands')
     files=os.listdir(read_command_loc)
     print(files)
     for file in files:
         if 'spectrum' in file:
             os.remove(read_command_loc+'\\'+file)
-            time.sleep(0.5)
-            print('yay I skipped a spectrum')
-            break
+    print(os.listdir(read_command_loc))
 
 if __name__=='__main__':
     main()
