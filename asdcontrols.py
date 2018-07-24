@@ -18,6 +18,7 @@ class RS3Controller:
         self.nextnum=None
         self.hopefully_saved_files=[]
         self.failed_to_open=False
+        self.numspectra=None
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
         except:
@@ -63,6 +64,36 @@ class RS3Controller:
     def optimize(self):
         self.spec.set_focus()
         keyboard.SendKeys('^O')
+    
+    def instrument_config(self, numspectra):
+        pauseafter=False
+        if self.numspectra==None or int(self.numspectra)<20 or True:
+            pauseafter=True
+        self.numspectra=numspectra
+
+        config=self.app['Instrument Configuration']
+        if config.exists()==False:
+            self.menu.open_control_dialog('img/rs3adjustconfig.png')
+        
+        t=0
+        while config.exists()==False and t<20:
+            print('waiting for instrument config panel')
+            time.sleep(1)
+            t+=1
+            
+        if config.exists()==False:
+            print('ERROR: Failed to open instrument configuration dialog')
+            self.failed_to_open=True
+            return
+            
+        config.Edit3.set_edit_text(str(numspectra))
+        config.Edit.set_edit_text(str(numspectra))
+        config.set_focus()
+        config.ThunderRT6PictureBoxDC.click_input()
+        print('Instrument configuration set with '+str(numspectra)+' spectra being averaged')
+        if pauseafter: 
+            time.sleep(2)
+            print('ready to go!')
         
     def spectrum_save(self, dir, base, startnum, numfiles=1, interval=0, comment=None, new_file_format=False):
         self.save_dir=dir
@@ -73,8 +104,15 @@ class RS3Controller:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
-            self.menu.open_save_dialog()
-        save=self.app['Spectrum Save']
+            self.menu.open_control_dialog('img/rs3specsave.png')
+        for _ in range(10):
+            save=self.app['Spectrum Save']
+            if save.exists():
+                break
+            else:
+                print('no spectrum save yet')
+                time.sleep(0.25)
+                
         if save.exists()==False: 
             print('ERROR: Failed to open save dialog')
             self.failed_to_open=True
@@ -238,9 +276,7 @@ class RS3Menu:
         self.help_delta_x=270
 
 
-        
-    def open_save_dialog(self):
-        print('opening a save dialog!')
+    def open_control_dialog(self, menuitem, timeout=10):
         self.spec=self.app['RS³   18483 1']
         if self.spec.exists()==False:
             print('RS3 not found. Failed to open save menu')
@@ -251,21 +287,36 @@ class RS3Menu:
         height=50
         self.spec.set_focus()
         loc=None
-        while True:
+        for _ in range(2*timeout):
             loc=find_image('img/rs3control.png',loc=(x_left, y_top, width, height))
             if loc !=None:
-                break
-            print('searching for control')
-            time.sleep(0.5)
 
-        x=loc[0]
-        y=loc[1]
-    
-        mouse.click(coords=(x,y))
-        #mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
-        for i in range(10):
-            keyboard.SendKeys('{DOWN}')
-        keyboard.SendKeys('{ENTER}')
+                x=loc[0]
+                y=loc[1]
+                mouse.click(coords=(x,y))
+                menuregion=(loc[0], loc[1], 100, 300)
+                
+                #Now that you've opened the menu, find the menu item.
+                for _ in range(4*timeout):
+                    loc2=find_image(menuitem, loc=menuregion)
+                    if loc2 != None:
+
+                        x=loc2[0]+menuregion[0]
+                        y=loc2[1]+menuregion[1]
+                        mouse.click(coords=(x,y))
+                        break
+                    else:
+                        print('searching for menu item')
+                        time.sleep(0.25)
+                #mouse.click(coords=(self.x_left+self.control_delta_x, self.y_menu))
+                # for i in range(number):
+                #     keyboard.SendKeys('{DOWN}')
+                # keyboard.SendKeys('{ENTER}')
+                break
+            else:
+                print('searching for control')
+                time.sleep(0.25)
+
         
 def wait_for_window(app, title, timeout=5):
     spec=app[title]

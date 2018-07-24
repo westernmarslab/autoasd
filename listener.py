@@ -81,7 +81,6 @@ def main():
             #print("this is a sloppy way to catch an exception when spec_controller.save_dir doesn't exist")
                             
                         
-        
         files=os.listdir(read_command_loc)
         if files!=files0:
             print('***************')
@@ -99,12 +98,19 @@ def main():
                                 pass
                             cmdnum+=1
                             continue
+                        print('spectra conifg: '+str(spec_controller.numspectra))
+                        if spec_controller.numspectra==None:
+                            with open(write_command_loc+'\\nonumspectra'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                            continue
                         filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
                         exists=False
                         if os.path.isfile(filename):
                             exists=True
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
                                 pass
+                            cmdnum+=1
                             files0=files
                             continue
                         
@@ -118,7 +124,7 @@ def main():
                         saved=False
                         t0=time.clock()
                         t=time.clock()
-                        while t-t0<timeout and saved==False:
+                        while t-t0<int(spec_controller.numspectra)*5 and saved==False:
                             saved=os.path.isfile(filename)
                             time.sleep(0.2)
                             t=time.clock()
@@ -143,9 +149,10 @@ def main():
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
                                 pass
                             print('I should make it here if the file exists and I am configuring')
-                            #files0=files
+                            files0=files
                             #continue
                             skip_spectrum()
+                            #files0=files
                             continue
                         spec_controller.spectrum_save(save_path, basename, startnum)
                             
@@ -174,13 +181,14 @@ def main():
                             with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
-                            
+                    elif 'instrumentconfig' in cmd:
+                        spec_controller.instrument_config(params[0])
                     elif 'ignorefile' in cmd:
                         print('hooray!')
                         data_files_to_ignore.append('hooray!')
                     elif 'rmfile' in cmd:
                         print('not actually removing anything!')
-                            
+        time.sleep(0.5)
         files0=files
         
 def filename_to_cmd(filename):
@@ -201,7 +209,7 @@ def cmd_to_filename(cmd, params):
     return filename
 
 def skip_spectrum():
-    time.sleep(3)
+    time.sleep(2)
     print('remove spec commands')
     files=os.listdir(read_command_loc)
     print(files)
@@ -209,6 +217,7 @@ def skip_spectrum():
         if 'spectrum' in file:
             os.remove(read_command_loc+'\\'+file)
     print(os.listdir(read_command_loc))
+    time.sleep(1)
 
 if __name__=='__main__':
     main()
