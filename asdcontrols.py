@@ -161,7 +161,9 @@ class ViewSpecProController:
         self.spec=self.app['ViewSpec Pro    Version 6.2'] 
         self.pid=self.app.process
         if self.spec.exists(): print('Connected to ViewSpec Pro')
-    
+    def reset(self):
+        while self.app.Dialog.exists():
+            self.app.Dialog.close()
     def process(self, input_path, output_path, tsv_name):
         files=os.listdir(output_path)
         for file in files:

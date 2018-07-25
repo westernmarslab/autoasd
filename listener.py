@@ -46,10 +46,10 @@ def main():
     delme=os.listdir(read_command_loc)
     for file in delme:
         os.remove(read_command_loc+'\\'+file)
-    
-    delme=os.listdir(write_command_loc)
-    for file in delme:
-        os.remove(write_command_loc+'\\'+file)
+    # 
+    # delme=os.listdir(write_command_loc)
+    # for file in delme:
+    #     os.remove(write_command_loc+'\\'+file)
         
     spec_controller=RS3Controller(share_loc, logdir, running=RS3_running)
     process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
@@ -84,21 +84,19 @@ def main():
         files=os.listdir(read_command_loc)
         if files!=files0:
             print('***************')
-            print('here are the new files')
             for file in files:
                 if file not in files0:
                     print(file)
                     cmd,params=filename_to_cmd(file)
                     #os.remove(read_command_loc+'\\'+file)
                     if 'spectrum' in cmd: 
-                        print('spectrum command received!')
                         old=len(spec_controller.hopefully_saved_files)
                         if spec_controller.save_dir=='':
                             with open(write_command_loc+'\\noconfig'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             continue
-                        print('spectra conifg: '+str(spec_controller.numspectra))
+                        print('spectra config: '+str(spec_controller.numspectra))
                         if spec_controller.numspectra==None:
                             with open(write_command_loc+'\\nonumspectra'+str(cmdnum),'w+') as f:
                                 pass
@@ -106,8 +104,10 @@ def main():
                             continue
                         filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
                         exists=False
+                        print('here I am about to check if it is a file in the spectrum cmd'+filename)
                         if os.path.isfile(filename):
                             exists=True
+                            print('here I am!')
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -124,11 +124,11 @@ def main():
                         saved=False
                         t0=time.clock()
                         t=time.clock()
-                        while t-t0<int(spec_controller.numspectra)*5 and saved==False:
+                        while t-t0<int(spec_controller.numspectra)*4 and saved==False:
                             saved=os.path.isfile(filename)
                             time.sleep(0.2)
                             t=time.clock()
-                        print('file saved and found?:'+ str(saved))
+                        print(filename+' saved and found?:'+ str(saved))
                         if saved:
                             filestring=cmd_to_filename('savedfile'+str(cmdnum),[filename])
                         else:
@@ -143,13 +143,12 @@ def main():
                         basename=params[1]
                         startnum=params[2]
                         filename=save_path+'\\'+basename+'.'+startnum
-                        exists=False
                         if os.path.isfile(filename):
-                            exists=True
+                            print('Cannot set saveconfig: '+filename+' already exists.')
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
                                 pass
-                            print('I should make it here if the file exists and I am configuring')
                             files0=files
+                            cmdnum+=1
                             #continue
                             skip_spectrum()
                             #files0=files
@@ -178,6 +177,7 @@ def main():
                             process_controller.process(input_path, output_path, tsv_name)
 
                         except:
+                            process_controller.reset()
                             with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -212,11 +212,11 @@ def skip_spectrum():
     time.sleep(2)
     print('remove spec commands')
     files=os.listdir(read_command_loc)
-    print(files)
+    #print(files)
     for file in files:
         if 'spectrum' in file:
             os.remove(read_command_loc+'\\'+file)
-    print(os.listdir(read_command_loc))
+    #print(os.listdir(read_command_loc))
     time.sleep(1)
 
 if __name__=='__main__':
