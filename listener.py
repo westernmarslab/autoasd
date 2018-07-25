@@ -46,10 +46,10 @@ def main():
     delme=os.listdir(read_command_loc)
     for file in delme:
         os.remove(read_command_loc+'\\'+file)
-    # 
-    # delme=os.listdir(write_command_loc)
-    # for file in delme:
-    #     os.remove(write_command_loc+'\\'+file)
+    
+    delme=os.listdir(write_command_loc)
+    for file in delme:
+        os.remove(write_command_loc+'\\'+file)
         
     spec_controller=RS3Controller(share_loc, logdir, running=RS3_running)
     process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
@@ -104,7 +104,8 @@ def main():
                             continue
                         filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
                         exists=False
-                        print('here I am about to check if it is a file in the spectrum cmd'+filename)
+                        print('here I am about to check if it is a file in the spectrum '+filename)
+                        os.listdir(spec_controller.save_dir)
                         if os.path.isfile(filename):
                             exists=True
                             print('here I am!')
@@ -113,7 +114,7 @@ def main():
                             cmdnum+=1
                             files0=files
                             continue
-                        
+                        print('telling spec controller to take a spectrum')
                         spec_controller.take_spectrum()
                         wait=True
                         while wait:
@@ -129,10 +130,14 @@ def main():
                             time.sleep(0.2)
                             t=time.clock()
                         print(filename+' saved and found?:'+ str(saved))
+                        spec_controller.numspectra=str(int(spec_controller.numspectra)-1)
+                        spec_controller.numspectra=str(int(spec_controller.numspectra)+1)
                         if saved:
                             filestring=cmd_to_filename('savedfile'+str(cmdnum),[filename])
                         else:
                             spec_controller.hopefully_saved_files.pop(-1)
+                            print(type(spec_controller.numspectra))
+                            spec_controller.numspectra=str(int(spec_controller.numspectra)-1)
                             filestring=cmd_to_filename('failedtosavefile'+str(cmdnum),[filename])
                             
                         with open(write_command_loc+'\\'+filestring,'w+') as f:
@@ -166,6 +171,7 @@ def main():
                         else:
                             with open(write_command_loc+'\\saveconfigsuccess'+str(cmdnum),'w+') as f:
                                 pass
+                                cmdnum+=1
                             
                     elif 'wr' in cmd: spec_controller.white_reference()
                     elif 'opt' in cmd: spec_controller.optimize()
@@ -173,7 +179,16 @@ def main():
                         input_path=params[0]                            
                         output_path=params[1]
                         tsv_name=params[2]
+                        filename=output_path+'\\'+tsv_name
+                        print(filename)
+                        if os.path.isfile(filename):
+                            print('do not process')
+                            with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                            continue
                         try:
+                            print('trying to process')
                             process_controller.process(input_path, output_path, tsv_name)
 
                         except:

@@ -20,6 +20,7 @@ class RS3Controller:
         self.failed_to_open=False
         self.numspectra=None
         try:
+            #print(errortime)
             self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
         except:
             print('Starting RS³')
@@ -46,6 +47,7 @@ class RS3Controller:
         
     def take_spectrum(self):
         self.spec.set_focus()
+        time.sleep(0.75)
         pyautogui.press('space')
         #time.sleep(1)
         #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
@@ -73,7 +75,7 @@ class RS3Controller:
 
         config=self.app['Instrument Configuration']
         if config.exists()==False:
-            self.menu.open_control_dialog('img/rs3adjustconfig.png')
+            self.menu.open_control_dialog(['img/rs3adjustconfig.png','img/rs3adjustconfig2.png'])
         
         t=0
         while config.exists()==False and t<20:
@@ -104,7 +106,7 @@ class RS3Controller:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
-            self.menu.open_control_dialog('img/rs3specsave.png')
+            self.menu.open_control_dialog(['img/rs3specsave.png','img/rs3specsave2.png'])
         for _ in range(10):
             save=self.app['Spectrum Save']
             if save.exists():
@@ -169,9 +171,10 @@ class ViewSpecProController:
         for file in files:
             if '.sco' in file:
                 os.remove(output_path+'\\'+file)
+        print('processing files')
         self.spec.menu_select('File -> Close')
         self.open_files(input_path)
-        time.sleep(2)
+        time.sleep(1)
         self.set_save_directory(output_path)
         self.splice_correction()
         self.ascii_export(output_path, tsv_name)
@@ -278,7 +281,7 @@ class RS3Menu:
         self.help_delta_x=270
 
 
-    def open_control_dialog(self, menuitem, timeout=10):
+    def open_control_dialog(self, menuitems, timeout=10):
         self.spec=self.app['RS³   18483 1']
         if self.spec.exists()==False:
             print('RS3 not found. Failed to open save menu')
@@ -287,25 +290,35 @@ class RS3Menu:
         y_top=self.spec.rectangle().top
         width=300
         height=50
+        controlregion=(x_left, y_top, width, height)
         self.spec.set_focus()
         loc=None
-        for _ in range(2*timeout):
-            loc=find_image('img/rs3control.png',loc=(x_left, y_top, width, height))
+        found=False
+        for _ in range(10*timeout):
+            loc=find_image('img/rs3control.png',loc=controlregion)
+            if loc==None:
+                print('looking for image 2')
+                loc=find_image('img/rs3control2.png',loc=controlregion)
             if loc !=None:
 
-                x=loc[0]
-                y=loc[1]
+                x=loc[0]+controlregion[0]
+                y=loc[1]+controlregion[1]
                 mouse.click(coords=(x,y))
-                menuregion=(loc[0], loc[1], 100, 300)
+                menuregion=(x, y, 100, 300)
                 
                 #Now that you've opened the menu, find the menu item.
                 for _ in range(4*timeout):
-                    loc2=find_image(menuitem, loc=menuregion)
+                    loc2=find_image(menuitems[0], loc=menuregion)
+                    if loc2==None and len(menuitems)>1:
+                        print('looking for menu item image 2')
+                        print(menuitems)
+                        loc2=find_image(menuitems[1], loc=menuregion)
                     if loc2 != None:
 
                         x=loc2[0]+menuregion[0]
                         y=loc2[1]+menuregion[1]
                         mouse.click(coords=(x,y))
+                        found=True
                         break
                     else:
                         print('searching for menu item')
@@ -317,7 +330,9 @@ class RS3Menu:
                 break
             else:
                 print('searching for control')
-                time.sleep(0.25)
+                time.sleep(0.1)
+        if not found:
+            raise Exception('Menu item not found')
 
         
 def wait_for_window(app, title, timeout=5):
