@@ -6,7 +6,8 @@ import datetime
 import pexpect
 
 dev=True
-computer='new'
+computer='old'
+#computer='new'
 RS3_running=True
 ViewSpecPro_running=False
 timeout=5
@@ -19,7 +20,7 @@ if computer == 'old':
     sys.path.append('c:/users/rs3admin/hozak/python/autoasd/')
     #os.system('del C:\\SpecShare\commands\*')
     os.chdir('c:/users/rs3admin/hozak/python/autoasd')
-    share_loc='C:\\Kathleen'
+    share_loc='C:\\SpecShare'
     RS3_loc=r"C:\Program Files\ASD\RS3\RS3.exe"
     ViewSpecPro_loc=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe"
     
@@ -65,7 +66,7 @@ def main():
         os.remove(write_command_loc+'\\'+file)
         
     spec_controller=RS3Controller(share_loc, RS3_loc, logdir, running=RS3_running)
-    process_controller=ViewSpecProController(ViewSpecPro_loc,logdir, running=ViewSpecPro_running)
+    process_controller=ViewSpecProController(share_loc, ViewSpecPro_loc,logdir, running=ViewSpecPro_running)
     
     files0=os.listdir(read_command_loc)
     print('time to listen!')
@@ -115,9 +116,9 @@ def main():
                                 pass
                             cmdnum+=1
                             continue
-                        if False:
+                        if computer=='old':
                             filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
-                        elif True:
+                        elif computer=='new':
                             filename=spec_controller.save_dir+'\\'+spec_controller.basename+spec_controller.nextnum+'.asd'
                         exists=False
                         print('here I am about to check if it is a file in the spectrum '+spec_controller.save_dir+'\\'+filename)

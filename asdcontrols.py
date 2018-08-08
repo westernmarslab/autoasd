@@ -8,6 +8,20 @@ import time
 import datetime
 import os
 
+computer='old'
+#computer='new'
+
+global COLORS
+COLORS={'status':None, 'file_highlight':''}
+global INDEXNUMLEN
+if computer=='old':
+    COLORS['file_highlight']=(51,153,255)
+    COLORS['status']=(0,0,168)
+    INDEXNUMLEN=3
+elif computer=='new':
+    COLORS['file_highlight']=(0,120,215)
+    INDEXNUMLEN=5
+
 class RS3Controller:
 
     def __init__(self, share_loc,RS3_loc, logdir, running=False):
@@ -20,7 +34,6 @@ class RS3Controller:
         self.hopefully_saved_files=[]
         self.failed_to_open=False
         self.numspectra=None
-        self.indexnumlen=5
         try:
             #print(errortime)
             self.app=Application().connect(path=RS3_loc)
@@ -59,7 +72,7 @@ class RS3Controller:
         elif True:
             hopeful=filename#self.save_dir+'\\'+self.basename+self.nextnum+'.asd'
         self.nextnum=str(int(self.nextnum)+1)
-        while len(self.nextnum)<self.indexnumlen:
+        while len(self.nextnum)<INDEXNUMLEN:
              self.nextnum='0'+self.nextnum
         self.hopefully_saved_files.append(hopeful)
         #else: self.hopefully_saved_files.append('unknown')
@@ -68,6 +81,22 @@ class RS3Controller:
     def white_reference(self):
         self.spec.set_focus()
         keyboard.SendKeys('{F4}')
+        started=False
+        while not started:
+            loc=find_image('img/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            if loc != None:
+                started=True
+            else:
+                time.sleep(0.25)
+        finished=False
+        while not finished:
+            loc=find_image('img/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            if loc != None:
+                finished=True
+            else:
+                time.sleep(0.25)
+        print('finished taking wr')
+        time.sleep(2)
         
     def optimize(self):
         self.spec.set_focus()
@@ -108,7 +137,7 @@ class RS3Controller:
         self.basename=base
         self.nextnum=str(startnum)
 
-        while len(self.nextnum)<self.indexnumlen:
+        while len(self.nextnum)<INDEXNUMLEN:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
@@ -213,7 +242,6 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
     
     def set_save_directory(self,path, force=False):
-        if self
         print('setting save directory')
         dict=self.spec.menu().get_properties()
         output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
@@ -222,7 +250,6 @@ class ViewSpecProController:
         save=self.app['New Directory Path']
         path_el=path.split('\\')
         if path_el[0].upper()=='C:':
-            if path_el[1
             for el in path_el:
                 if el=='C:': el='C:\\'
                 save.ListBox.select(el)
@@ -282,11 +309,10 @@ class ViewSpecProController:
         x=rectangle.left+0.5*(rectangle.right-rectangle.left)
         x=int(x)
         y=rectangle.top
-        color=(0,120,215)
-        #color=(51,153,255)
+
         
         while y<rectangle.bottom:
-            if pyautogui.pixelMatchesColor(x,y,color):
+            if pyautogui.pixelMatchesColor(x,y,COLORS['file_highlight']):
                 pyautogui.click(x=x,y=y, clicks=2)
                 return
             y=y+5
@@ -334,7 +360,7 @@ class RS3Menu:
                         print(menuitems)
                         loc2=find_image(menuitems[1], loc=menuregion)
                     if loc2 != None:
-
+                        print('found menu item')
                         x=loc2[0]+menuregion[0]
                         y=loc2[1]+menuregion[1]
                         mouse.click(coords=(x,y))
