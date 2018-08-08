@@ -6,19 +6,32 @@ import datetime
 import pexpect
 
 dev=True
+computer='new'
 RS3_running=True
 ViewSpecPro_running=False
 timeout=5
+share_loc=''
+RS3_loc=''
+ViewSpecPro_loc=''
 
 
-if dev: 
+if computer == 'old': 
     sys.path.append('c:/users/rs3admin/hozak/python/autoasd/')
     #os.system('del C:\\SpecShare\commands\*')
     os.chdir('c:/users/rs3admin/hozak/python/autoasd')
+    share_loc='C:\\Kathleen'
+    RS3_loc=r"C:\Program Files\ASD\RS3\RS3.exe"
+    ViewSpecPro_loc=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe"
+    
+elif computer =='new':
+    sys.path.append('C:\\users\\hozak\\Python\\Autoasd')
+    os.chdir('C:\\users\\hozak\\Python\\Autoasd')
+    share_loc='C:\\SpecShare'
+    RS3_loc=r"C:\Program Files (x86)\ASD\RS3\RS3.exe"
+    ViewSpecPro_loc=r"C:\Program Files (x86)\ASD\ViewSpecPro\ViewSpecPro.exe"
 
 import asdcontrols
 
-share_loc='C:\\SpecShare'
 read_command_loc=share_loc+'\\commands\\from_control'
 write_command_loc=share_loc+'\\commands\\from_spec'
 if dev:
@@ -51,8 +64,8 @@ def main():
     for file in delme:
         os.remove(write_command_loc+'\\'+file)
         
-    spec_controller=RS3Controller(share_loc, logdir, running=RS3_running)
-    process_controller=ViewSpecProController(logdir, running=ViewSpecPro_running)
+    spec_controller=RS3Controller(share_loc, RS3_loc, logdir, running=RS3_running)
+    process_controller=ViewSpecProController(ViewSpecPro_loc,logdir, running=ViewSpecPro_running)
     
     files0=os.listdir(read_command_loc)
     print('time to listen!')
@@ -102,11 +115,14 @@ def main():
                                 pass
                             cmdnum+=1
                             continue
-                        filename=params[0]+'\\'+params[1]+'.'+params[2]
+                        if False:
+                            filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
+                        elif True:
+                            filename=spec_controller.save_dir+'\\'+spec_controller.basename+spec_controller.nextnum+'.asd'
                         exists=False
-                        print('here I am about to check if it is a file in the spectrum '+filename)
+                        print('here I am about to check if it is a file in the spectrum '+spec_controller.save_dir+'\\'+filename)
                         os.listdir(spec_controller.save_dir)
-                        if os.path.isfile(filename):
+                        if os.path.isfile(spec_controller.save_dir+'\\'+filename):
                             exists=True
                             print('here I am!')
                             with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
@@ -115,7 +131,7 @@ def main():
                             files0=files
                             continue
                         print('telling spec controller to take a spectrum')
-                        spec_controller.take_spectrum()
+                        spec_controller.take_spectrum(filename)
                         wait=True
                         while wait:
                             time.sleep(0.2)
