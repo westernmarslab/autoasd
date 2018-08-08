@@ -152,9 +152,10 @@ class RS3Controller:
         
 
 class ViewSpecProController:
-    def __init__(self, logdir, running=False):
+    def __init__(self, share_loc, logdir, running=False):
         self.app=Application()
         self.logdir=logdir
+        self.share_loc=share_loc
         try:
             self.app=Application().connect(path=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
         except:
@@ -202,7 +203,8 @@ class ViewSpecProController:
         keyboard.SendKeys('^a')
         keyboard.SendKeys('{ENTER}')
     
-    def set_save_directory(self,path):
+    def set_save_directory(self,path, force=False):
+        if self
         print('setting save directory')
         dict=self.spec.menu().get_properties()
         output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
@@ -210,7 +212,8 @@ class ViewSpecProController:
         print('menu select?')
         save=self.app['New Directory Path']
         path_el=path.split('\\')
-        if path_el[0]=='C:'or path_el[0]=='c:':
+        if path_el[0].upper()=='C:':
+            if path_el[1
             for el in path_el:
                 if el=='C:': el='C:\\'
                 save.ListBox.select(el)
