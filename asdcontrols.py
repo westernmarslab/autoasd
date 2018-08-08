@@ -200,6 +200,7 @@ class ViewSpecProController:
         keyboard.SendKeys(path)
         open['Address Band Root'].edit.set_focus()
         keyboard.SendKeys('{ENTER}')
+        print('opened files!')
         
         #Make sure *.0** files are visible instead of just *.asd. Note that this won't work if you have over 100 files!!
         open.ComboBox2.select(0).click()
@@ -209,7 +210,11 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
     
     def set_save_directory(self,path):
-        self.spec.menu_select('Setup -> Output Directory')
+        print('setting save directory')
+        dict=self.spec.menu().get_properties()
+        output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
+        self.spec.menu_select('Setup -> '+output_text)
+        print('menu select?')
         save=self.app['New Directory Path']
         path_el=path.split('\\')
         if path_el[0]=='C:'or path_el[0]=='c:':
@@ -247,6 +252,7 @@ class ViewSpecProController:
         export.AbsoluteCheckBox.check()
         export.OutputToASingleFileCheckBox.check()
         export.set_focus()
+        time.sleep(2)
         export.Button2.click_input()
         
         save=self.app['Select Ascii File']
@@ -256,6 +262,7 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
         save.edit.set_edit_text(tsv_name)
         save.set_focus()
+        time.sleep(2)
         save.OKButton.click_input()
         self.app['Dialog'].OKButton.click()
         

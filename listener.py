@@ -17,7 +17,7 @@ ViewSpecPro_loc=''
 
 if computer == 'old': 
     sys.path.append('c:/users/rs3admin/hozak/python/autoasd/')
-    #os.system('del C:\\Kathleen\commands\*')
+    #os.system('del C:\\SpecShare\commands\*')
     os.chdir('c:/users/rs3admin/hozak/python/autoasd')
     share_loc='C:\\Kathleen'
     RS3_loc=r"C:\Program Files\ASD\RS3\RS3.exe"
@@ -42,7 +42,7 @@ if dev:
 def main():
     cmdnum=0
     #logpath='C:/Users/RS3Admin/hozak/log.txt'
-    #logpath='C:/Kathleen/log/log.txt'      
+    #logpath='C:/SpecShare/log/log.txt'      
     logdir=share_loc+'\\log\\'+datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
     try:
         os.mkdir(logdir)
