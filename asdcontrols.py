@@ -10,7 +10,8 @@ import os
 
 class RS3Controller:
 
-    def __init__(self, share_loc, logdir, running=False):
+    def __init__(self, share_loc,RS3_loc, logdir, running=False):
+        self.RS3_loc=RS3_loc
         self.share_loc=share_loc
         self.app=Application()
         self.save_dir=''
@@ -19,12 +20,13 @@ class RS3Controller:
         self.hopefully_saved_files=[]
         self.failed_to_open=False
         self.numspectra=None
+        self.indexnumlen=5
         try:
             #print(errortime)
-            self.app=Application().connect(path=r"C:\Program Files\ASD\RS3\RS3.exe")
+            self.app=Application().connect(path=RS3_loc)
         except:
             print('Starting RS³')
-            self.app=Application().start("C:\Program Files\ASD\RS3\RS3.exe")
+            self.app=Application().start(RS3_loc)
         print(str(datetime.datetime.now())+'\tConnected to RS3')
         self.spec=None
         self.spec_connected=False
@@ -45,16 +47,20 @@ class RS3Controller:
         self.pid=self.app.process
         self.menu=RS3Menu(self.app)
         
-    def take_spectrum(self):
+    def take_spectrum(self, filename):
         self.spec.set_focus()
         time.sleep(0.75)
         pyautogui.press('space')
         #time.sleep(1)
         #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
-        hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
+        hopeful=''
+        if False:
+            hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
+        elif True:
+            hopeful=filename#self.save_dir+'\\'+self.basename+self.nextnum+'.asd'
         self.nextnum=str(int(self.nextnum)+1)
-        while len(self.nextnum)<3:
-            self.nextnum='0'+self.nextnum
+        while len(self.nextnum)<self.indexnumlen:
+             self.nextnum='0'+self.nextnum
         self.hopefully_saved_files.append(hopeful)
         #else: self.hopefully_saved_files.append('unknown')
         
@@ -102,7 +108,7 @@ class RS3Controller:
         self.basename=base
         self.nextnum=str(startnum)
 
-        while len(self.nextnum)<3:
+        while len(self.nextnum)<self.indexnumlen:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
@@ -152,14 +158,15 @@ class RS3Controller:
         
 
 class ViewSpecProController:
-    def __init__(self, logdir, running=False):
+    def __init__(self, ViewSpecPro_loc, logdir, running=False):
         self.app=Application()
         self.logdir=logdir
+        self.ViewSpecPro_loc=ViewSpecPro_loc
         try:
-            self.app=Application().connect(path=r"C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
+            self.app=Application().connect(path=self.ViewSpecPro_loc)
         except:
             print('Starting ViewSpec Pro')
-            self.app=Application().start("C:\Program Files\ASD\ViewSpecPro\ViewSpecPro.exe")
+            self.app=Application().start(ViewSpecPro_loc)
         self.spec=self.app['ViewSpec Pro    Version 6.2'] 
         self.pid=self.app.process
         if self.spec.exists(): print('Connected to ViewSpec Pro')
@@ -195,8 +202,8 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
         
         #Make sure *.0** files are visible instead of just *.asd. Note that this won't work if you have over 100 files!!
-        open.ComboBox2.select(1).click()
-        open.ComboBox2.select(1).click()
+        open.ComboBox2.select(0).click()
+        open.ComboBox2.select(0).click()
         open.directUIHWND.ShellView.set_focus()
         keyboard.SendKeys('^a')
         keyboard.SendKeys('{ENTER}')
@@ -263,7 +270,8 @@ class ViewSpecProController:
         x=rectangle.left+0.5*(rectangle.right-rectangle.left)
         x=int(x)
         y=rectangle.top
-        color=(51,153,255)
+        color=(0,120,215)
+        #color=(51,153,255)
         
         while y<rectangle.bottom:
             if pyautogui.pixelMatchesColor(x,y,color):
