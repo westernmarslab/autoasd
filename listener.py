@@ -13,12 +13,12 @@ timeout=5
 
 if dev: 
     sys.path.append('c:/users/rs3admin/hozak/python/autoasd/')
-    #os.system('del C:\\Kathleen\commands\*')
+    #os.system('del C:\\SpecShare\commands\*')
     os.chdir('c:/users/rs3admin/hozak/python/autoasd')
 
 import asdcontrols
 
-share_loc='C:\\Kathleen'
+share_loc='C:\\SpecShare'
 read_command_loc=share_loc+'\\commands\\from_control'
 write_command_loc=share_loc+'\\commands\\from_spec'
 if dev:
@@ -29,7 +29,7 @@ if dev:
 def main():
     cmdnum=0
     #logpath='C:/Users/RS3Admin/hozak/log.txt'
-    #logpath='C:/Kathleen/log/log.txt'      
+    #logpath='C:/SpecShare/log/log.txt'      
     logdir=share_loc+'\\log\\'+datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
     try:
         os.mkdir(logdir)
@@ -102,7 +102,7 @@ def main():
                                 pass
                             cmdnum+=1
                             continue
-                        filename=spec_controller.save_dir+'\\'+spec_controller.basename+'.'+spec_controller.nextnum
+                        filename=params[0]+'\\'+params[1]+'.'+params[2]
                         exists=False
                         print('here I am about to check if it is a file in the spectrum '+filename)
                         os.listdir(spec_controller.save_dir)
