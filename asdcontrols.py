@@ -8,7 +8,7 @@ import time
 import datetime
 import os
 
-computer='old'
+computer='new'
 #computer='new'
 
 global COLORS
@@ -50,7 +50,7 @@ class RS3Controller:
                 if el.name=='RS³   18483 1': 
                     self.spec=self.app['RS³   18483 1']
                     self.spec_connected=True
-            time.sleep(1)
+            time.sleep(0.5)
         print('RS³ connected to spectrometer.')
         self.logdir=logdir
         #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
@@ -115,7 +115,7 @@ class RS3Controller:
         t=0
         while config.exists()==False and t<20:
             print('waiting for instrument config panel')
-            time.sleep(1)
+            time.sleep(0.5)
             t+=1
             
         if config.exists()==False:
