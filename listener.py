@@ -166,14 +166,17 @@ def main():
                     elif 'saveconfig' in cmd:
                         save_path=params[0]
                         file=check_for_unexpected(save_path, spec_controller.hopefully_saved_files, data_files_to_ignore)
+                        found_unexpected=False
                         while file !=None:
+                            found_unexpected=True
                             print('found unexpected in saveconfig:'+file)
                             data_files_to_ignore.append(file)
                             with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
                                     pass
                             cmdnum+=1
                             file=check_for_unexpected(save_path, spec_controller.hopefully_saved_files, data_files_to_ignore)
-                            
+                        if found_unexpected==True:
+                            time.sleep(2)
                         with open(write_command_loc+'\\donelookingforunexpected'+str(cmdnum),'w+') as f:
                                     pass
                         
@@ -197,6 +200,7 @@ def main():
                             instrument_config_num=None
                             #files0=files
                             continue
+                        print('ready to do spectrum_save')
                         spec_controller.spectrum_save(save_path, basename, startnum)
                             
                         if spec_controller.failed_to_open:
@@ -214,7 +218,14 @@ def main():
                                 pass
                                 cmdnum+=1
                             
-                    elif 'wr' in cmd: spec_controller.white_reference()
+                    elif 'wr' in cmd: 
+                        spec_controller.white_reference()
+                        while spec_controller.wr_success==False:
+                            time.sleep(1)
+                            print('waiting for wr success')
+                        with open(write_command_loc+'\\wrsuccess'+str(cmdnum),'w+') as f:
+                            pass
+                        cmdnum+=1
                     elif 'opt' in cmd: spec_controller.optimize()
                     elif 'process' in cmd:
                         input_path=params[0]                            
@@ -224,14 +235,29 @@ def main():
                         print(filename)
                         if os.path.isfile(filename):
                             print('do not process')
-                            with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
+                            with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             continue
                         try:
                             print('trying to process')
                             process_controller.process(input_path, output_path, tsv_name)
-
+                            print('check if it actually saved')
+                            print(filename)
+                            saved=False
+                            t0=time.clock()
+                            t=time.clock()
+                            while t-t0<5 and saved==False:
+                                saved=os.path.isfile(filename)
+                                time.sleep(0.2)
+                                t=time.clock()
+                            if saved:
+                                with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
+                                    pass
+                            else:
+                                with open(write_command_loc+'\\processerrorwropt'+str(cmdnum),'w+') as f:
+                                    pass
+                            cmdnum+=1
                         except:
                             process_controller.reset()
                             with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:

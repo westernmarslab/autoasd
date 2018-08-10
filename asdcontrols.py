@@ -11,6 +11,11 @@ import os
 computer='new'
 #computer='new'
 
+if computer=='new':
+    img_loc='img2'
+else:
+    img_loc='img'
+
 global COLORS
 COLORS={'status':None, 'file_highlight':''}
 global INDEXNUMLEN
@@ -34,6 +39,7 @@ class RS3Controller:
         self.hopefully_saved_files=[]
         self.failed_to_open=False
         self.numspectra=None
+        self.wr_success=False
         try:
             #print(errortime)
             self.app=Application().connect(path=RS3_loc)
@@ -83,20 +89,20 @@ class RS3Controller:
         keyboard.SendKeys('{F4}')
         started=False
         while not started:
-            loc=find_image('img/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            loc=find_image(img_loc+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 started=True
             else:
                 time.sleep(0.25)
         finished=False
         while not finished:
-            loc=find_image('img/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            loc=find_image(img_loc+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 finished=True
             else:
                 time.sleep(0.25)
-        print('finished taking wr')
-        time.sleep(2)
+        self.wr_success=True
+        time.sleep(1)
         
     def optimize(self):
         self.spec.set_focus()
@@ -110,7 +116,7 @@ class RS3Controller:
 
         config=self.app['Instrument Configuration']
         if config.exists()==False:
-            self.menu.open_control_dialog(['img/rs3adjustconfig.png','img/rs3adjustconfig2.png'])
+            self.menu.open_control_dialog([img_loc+'/rs3adjustconfig.png',img_loc+'/rs3adjustconfig2.png'])
         
         t=0
         while config.exists()==False and t<20:
@@ -141,7 +147,7 @@ class RS3Controller:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
-            self.menu.open_control_dialog(['img/rs3specsave.png','img/rs3specsave2.png'])
+            self.menu.open_control_dialog([img_loc+'/rs3specsave.png',img_loc+'/rs3specsave2.png'])
         for _ in range(10):
             save=self.app['Spectrum Save']
             if save.exists():
@@ -166,7 +172,7 @@ class RS3Controller:
             for control in controls:
                 control.draw_outline()
                 rect=control.rectangle()
-                loc=find_image('img/rs3ok.png', rect=rect)
+                loc=find_image(img_loc+'/rs3ok.png', rect=rect)
                 if loc != None:
                     control.click_input()
                     okfound=True
@@ -341,10 +347,10 @@ class RS3Menu:
         loc=None
         found=False
         for _ in range(10*timeout):
-            loc=find_image('img/rs3control.png',loc=controlregion)
+            loc=find_image(img_loc+'/rs3control.png',loc=controlregion)
             if loc==None:
                 print('looking for image 2')
-                loc=find_image('img/rs3control2.png',loc=controlregion)
+                loc=find_image(img_loc+'/rs3control2.png',loc=controlregion)
             if loc !=None:
 
                 x=loc[0]+controlregion[0]
