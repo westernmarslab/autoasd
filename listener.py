@@ -273,6 +273,41 @@ def main():
                         data_files_to_ignore.append('hooray!')
                     elif 'rmfile' in cmd:
                         print('not actually removing anything!')
+                    elif 'listdir' in cmd:
+                        try:
+                            os.remove(read_command_loc+'\\'+file)
+                        except:
+                            time.sleep(1)
+                            os.remove(read_command_loc+'\\'+file)
+                        try:
+                            dir=params[0]
+                            if dir[-1]!='\\':dir+='\\'
+                            cmdfilename=cmd_to_filename(cmd,[params[0]])
+                            files=os.listdir(dir)
+                            with open(write_command_loc+'\\'+cmdfilename,'w+') as f:
+                                for file in files:
+                                    if os.path.isdir(dir+file) and file[0]!='.':
+                                        f.write(file+'\n')
+                                pass
+                            cmdnum+=1
+                        except:
+                            with open(write_command_loc+'\\'+'listdirfailed'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                    elif 'mkdir' in cmd:
+                        os.remove(read_command_loc+'\\'+file)
+                        try:
+                            os.mkdir(params[0])
+                            print('succeeding')
+                            with open(write_command_loc+'\\'+'mkdirsuccess'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                        except:
+                            print('failing')
+                            with open(write_command_loc+'\\'+'mkdirfailed'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                        
         time.sleep(0.5)
         files0=files
         
