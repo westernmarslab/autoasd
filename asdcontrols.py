@@ -249,16 +249,19 @@ class ViewSpecProController:
     
     def set_save_directory(self,path, force=False):
         print('setting save directory')
+        print(path)
         dict=self.spec.menu().get_properties()
         output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
         self.spec.menu_select('Setup -> '+output_text)
-        print('menu select?')
         save=self.app['New Directory Path']
         path_el=path.split('\\')
+        print(path_el)
         if path_el[0].upper()=='C:':
             for el in path_el:
-                if el=='C:': el='C:\\'
+                if el.upper()=='C:': el='c:\\'
+                print('time to try listbox select')
                 save.ListBox.select(el)
+                print(el)
                 self.select_item(save.ListBox.rectangle())
         else:
             print('Invalid directory (must save to C drive)')

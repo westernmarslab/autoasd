@@ -69,7 +69,7 @@ def main():
     spec_controller=RS3Controller(share_loc, RS3_loc, logdir, running=RS3_running)
     process_controller=ViewSpecProController(share_loc, ViewSpecPro_loc,logdir, running=ViewSpecPro_running)
     
-    files0=os.listdir(read_command_loc)
+    cmdfiles0=os.listdir(read_command_loc)
     print('time to listen!')
 
     wait_for_saveconfig_before_doing_instrument_config=False
@@ -90,15 +90,19 @@ def main():
             #print("this is a sloppy way to catch an exception when spec_controller.save_dir doesn't exist")
                             
                         
-        files=os.listdir(read_command_loc)
-        if wait_for_saveconfig_before_doing_instrument_config==True:
-            spec_controller.instrument_config(instrument_config_num)
+        cmdfiles=os.listdir(read_command_loc)
+
+        if False:#wait_for_saveconfig_before_doing_instrument_config==True:
+            try:
+                spec_controller.instrument_config(instrument_config_num)
+            except:
+                pass
             wait_for_saveconfig_before_doing_instrument_config=False
             instrument_config_num=None
-        if files!=files0:
+        if cmdfiles!=cmdfiles0:
             print('***************')
-            for file in files:
-                if file not in files0:
+            for file in cmdfiles:
+                if file not in cmdfiles0:
                     print(file)
                     cmd,params=filename_to_cmd(file)
                     #os.remove(read_command_loc+'\\'+file)
@@ -123,17 +127,14 @@ def main():
                         elif computer=='new':
                             filename=params[0]+'\\'+params[1]+params[2]+'.asd'
                         exists=False
-                        print('here I am about to check if it is a file in the spectrum '+filename)
                         os.listdir(spec_controller.save_dir)
                         if os.path.isfile(filename):
                             exists=True
-                            print('here I am!')
-                            with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
+                            with open(write_command_loc+'\\savespecfailedfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
-                            files0=files
+                            cmdfiles0=cmdfiles
                             continue
-                        print('telling spec controller to take a spectrum')
                         spec_controller.take_spectrum(filename)
                         wait=True
                         while wait:
@@ -190,7 +191,7 @@ def main():
                         print('checking for '+filename+' in saveconfig')
                         if os.path.isfile(filename):
                             print('Cannot set saveconfig: '+filename+' already exists.')
-                            with open(write_command_loc+'\\fileexists'+str(cmdnum),'w+') as f:
+                            with open(write_command_loc+'\\saveconfigfailedfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             files0=files
                             cmdnum+=1
@@ -222,7 +223,6 @@ def main():
                         spec_controller.white_reference()
                         while spec_controller.wr_success==False:
                             time.sleep(1)
-                            print('waiting for wr success')
                         with open(write_command_loc+'\\wrsuccess'+str(cmdnum),'w+') as f:
                             pass
                         cmdnum+=1
@@ -231,54 +231,82 @@ def main():
                         input_path=params[0]                            
                         output_path=params[1]
                         tsv_name=params[2]
-                        filename=output_path+'\\'+tsv_name
-                        print(filename)
-                        if os.path.isfile(filename):
-                            print('do not process')
+                        if os.path.isfile(output_path+'\\'+tsv_name):
                             with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             continue
-                        try:
-                            print('trying to process')
-                            process_controller.process(input_path, output_path, tsv_name)
-                            print('check if it actually saved')
-                            print(filename)
-                            saved=False
-                            t0=time.clock()
-                            t=time.clock()
-                            while t-t0<5 and saved==False:
-                                saved=os.path.isfile(filename)
-                                time.sleep(0.2)
-                                t=time.clock()
-                            if saved:
-                                with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
-                                    pass
-                            else:
-                                with open(write_command_loc+'\\processerrorwropt'+str(cmdnum),'w+') as f:
-                                    pass
-                            cmdnum+=1
-                        except:
-                            process_controller.reset()
-                            with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
+                        writeable=os.access(output_path,os.W_OK)
+                        if not writeable:
+                            with open(write_command_loc+'\\processerrorcannotwrite'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                        else:
+                            if output_path[0:3]!='C:\\':
+                                print('putting in temp')
+                                temp_output_path='C:\\SpecShare\\temp'
+                            else:
+                                temp_output_path=output_path
+                            
+                            filename=temp_output_path+'\\'+tsv_name
+                            print(temp_output_path)
+
+                            try:
+                                process_controller.process(input_path, temp_output_path, tsv_name)
+    
+                                saved=False
+                                t0=time.clock()
+                                t=time.clock()
+                                while t-t0<5 and saved==False:
+                                    saved=os.path.isfile(filename)
+                                    time.sleep(0.2)
+                                    t=time.clock()
+                                if saved:
+                                    if temp_output_path!=output_path:
+                                        tempfilename=filename
+                                        filename=output_path+'\\'+tsv_name
+                                        os.system('move '+tempfilename+' '+filename)
+                                        print('yay moved fine')
+                                    print(spec_controller.save_dir)
+                                    if spec_controller.save_dir!=None and spec_controller.save_dir!='':
+                                        if spec_controller.save_dir in filename:
+                                            print(spec_controller.save_dir)
+                                            print('going to check expected')
+                                            expected=filename.split(spec_controller.save_dir)[1].split('\\')[1]
+                                            print(expected)
+                                            spec_controller.hopefully_saved_files.append(expected)
+                                    print('going to say success')
+                                    with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
+                                        pass
+                                else:
+                                    with open(write_command_loc+'\\processerrorwropt'+str(cmdnum),'w+') as f:
+                                        pass
+                                cmdnum+=1
+                            except:
+                                process_controller.reset()
+                                with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
+                                    pass
+                                cmdnum+=1
                     elif 'instrumentconfig' in cmd:
-                        print('check for saveconfig first')
-                        wait_for_saveconfig_before_doing_instrument_config=True
+                        
+                        #wait_for_saveconfig_before_doing_instrument_config=True
                         instrument_config_num=params[0]
-                        continue
+                        try:
+                            spec_controller.instrument_config(instrument_config_num)
+                            with open(write_command_loc+'\\iconfigsuccess'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                        except:
+                            with open(write_command_loc+'\\iconfigerror'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
                     elif 'ignorefile' in cmd:
                         print('hooray!')
                         data_files_to_ignore.append('hooray!')
                     elif 'rmfile' in cmd:
                         print('not actually removing anything!')
                     elif 'listdir' in cmd:
-                        try:
-                            os.remove(read_command_loc+'\\'+file)
-                        except:
-                            time.sleep(1)
-                            os.remove(read_command_loc+'\\'+file)
+
                         try:
                             dir=params[0]
                             if dir[-1]!='\\':dir+='\\'
@@ -294,22 +322,37 @@ def main():
                             with open(write_command_loc+'\\'+'listdirfailed'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                            
                     elif 'mkdir' in cmd:
-                        os.remove(read_command_loc+'\\'+file)
                         try:
-                            os.mkdir(params[0])
+                            os.makedirs(params[0])
+                            print('made a dir')
+                            if spec_controller.save_dir!=None and spec_controller.save_dir!='':
+                                if spec_controller.save_dir in params[0]:
+
+                                    expected=params[0].split(spec_controller.save_dir)[1].split('\\')[1]
+
+                                    spec_controller.hopefully_saved_files.append(expected)
+                            
                             print('succeeding')
                             with open(write_command_loc+'\\'+'mkdirsuccess'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                        except(FileExistsError):
+                            with open(write_command_loc+'\\'+'mkdirfailedfileexists'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                        except(PermissionError):
+                            with open(write_command_loc+'\\'+'mkdirfailedpermission'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
                         except:
-                            print('failing')
                             with open(write_command_loc+'\\'+'mkdirfailed'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                         
         time.sleep(0.5)
-        files0=files
+        cmdfiles0=cmdfiles
         
 def filename_to_cmd(filename):
     cmd=filename.split('&')[0]
