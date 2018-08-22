@@ -84,7 +84,6 @@ def main():
             with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
                     pass
             cmdnum+=1
-            print('outside save config, seeing unexpected file')
             file=check_for_unexpected(spec_controller.save_dir, spec_controller.hopefully_saved_files, data_files_to_ignore)
 
             #print("this is a sloppy way to catch an exception when spec_controller.save_dir doesn't exist")
@@ -92,13 +91,13 @@ def main():
                         
         cmdfiles=os.listdir(read_command_loc)
 
-        if False:#wait_for_saveconfig_before_doing_instrument_config==True:
-            try:
-                spec_controller.instrument_config(instrument_config_num)
-            except:
-                pass
-            wait_for_saveconfig_before_doing_instrument_config=False
-            instrument_config_num=None
+        # if False:#wait_for_saveconfig_before_doing_instrument_config==True:
+        #     try:
+        #         spec_controller.instrument_config(instrument_config_num)
+        #     except:
+        #         pass
+        #     wait_for_saveconfig_before_doing_instrument_config=False
+        #     instrument_config_num=None
         if cmdfiles!=cmdfiles0:
             print('***************')
             for file in cmdfiles:
@@ -113,6 +112,7 @@ def main():
                             instrument_config_num=None
                         old=len(spec_controller.hopefully_saved_files)
                         if spec_controller.save_dir=='':
+                            print('no save dir!')
                             with open(write_command_loc+'\\noconfig'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -164,13 +164,13 @@ def main():
                         with open(write_command_loc+'\\'+filestring,'w+') as f:
                             pass
                         cmdnum+=1
+                        
                     elif 'saveconfig' in cmd:
                         save_path=params[0]
                         file=check_for_unexpected(save_path, spec_controller.hopefully_saved_files, data_files_to_ignore)
                         found_unexpected=False
                         while file !=None:
                             found_unexpected=True
-                            print('found unexpected in saveconfig:'+file)
                             data_files_to_ignore.append(file)
                             with open(write_command_loc+'\\unexpectedfile'+str(cmdnum)+'&'+file,'w+') as f:
                                     pass
@@ -190,10 +190,9 @@ def main():
                             filename=save_path+'\\'+basename+startnum+'.asd'
                         print('checking for '+filename+' in saveconfig')
                         if os.path.isfile(filename):
-                            print('Cannot set saveconfig: '+filename+' already exists.')
                             with open(write_command_loc+'\\saveconfigfailedfileexists'+str(cmdnum),'w+') as f:
                                 pass
-                            files0=files
+                            #files0=files
                             cmdnum+=1
                             #continue
                             skip_spectrum()
@@ -201,7 +200,6 @@ def main():
                             instrument_config_num=None
                             #files0=files
                             continue
-                        print('ready to do spectrum_save')
                         spec_controller.spectrum_save(save_path, basename, startnum)
                             
                         if spec_controller.failed_to_open:
@@ -226,7 +224,18 @@ def main():
                         with open(write_command_loc+'\\wrsuccess'+str(cmdnum),'w+') as f:
                             pass
                         cmdnum+=1
-                    elif 'opt' in cmd: spec_controller.optimize()
+                        
+                    elif 'opt' in cmd: 
+                        try:
+                            spec_controller.optimize()
+                            with open(write_command_loc+'\\optsuccess'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                        except:
+                            with open(write_command_loc+'\\optfailure'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                                
                     elif 'process' in cmd:
                         input_path=params[0]                            
                         output_path=params[1]
@@ -243,7 +252,6 @@ def main():
                             cmdnum+=1
                         else:
                             if output_path[0:3]!='C:\\':
-                                print('putting in temp')
                                 temp_output_path='C:\\SpecShare\\temp'
                             else:
                                 temp_output_path=output_path
@@ -287,9 +295,7 @@ def main():
                                 with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
                                     pass
                                 cmdnum+=1
-                    elif 'instrumentconfig' in cmd:
-                        
-                        #wait_for_saveconfig_before_doing_instrument_config=True
+                    elif 'instrumentconfig' in cmd:                        
                         instrument_config_num=params[0]
                         try:
                             spec_controller.instrument_config(instrument_config_num)
@@ -300,6 +306,8 @@ def main():
                             with open(write_command_loc+'\\iconfigerror'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                            
+                    #I am really not sure what this was all about...
                     elif 'ignorefile' in cmd:
                         print('hooray!')
                         data_files_to_ignore.append('hooray!')
@@ -351,7 +359,7 @@ def main():
                                 pass
                             cmdnum+=1
                         
-        time.sleep(0.5)
+        time.sleep(0.2)
         cmdfiles0=cmdfiles
         
 def filename_to_cmd(filename):

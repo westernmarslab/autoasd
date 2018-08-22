@@ -12,9 +12,9 @@ computer='new'
 #computer='new'
 
 if computer=='new':
-    img_loc='img2'
+    IMG_LOC='img2'
 else:
-    img_loc='img'
+    IMG_LOC='img'
 
 global COLORS
 COLORS={'status':None, 'file_highlight':''}
@@ -40,6 +40,9 @@ class RS3Controller:
         self.failed_to_open=False
         self.numspectra=None
         self.wr_success=False
+        self.opt_complete=False
+        self.interval=0.25
+        
         try:
             #print(errortime)
             self.app=Application().connect(path=RS3_loc)
@@ -56,7 +59,7 @@ class RS3Controller:
                 if el.name=='RS³   18483 1': 
                     self.spec=self.app['RS³   18483 1']
                     self.spec_connected=True
-            time.sleep(0.5)
+            time.sleep(self.interval)
         print('RS³ connected to spectrometer.')
         self.logdir=logdir
         #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
@@ -68,10 +71,10 @@ class RS3Controller:
         
     def take_spectrum(self, filename):
         self.spec.set_focus()
-        time.sleep(0.75)
+        time.sleep(1)
         pyautogui.press('space')
         #time.sleep(1)
-        #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:
+        #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:s
         hopeful=''
         if False:
             hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
@@ -89,24 +92,78 @@ class RS3Controller:
         keyboard.SendKeys('{F4}')
         started=False
         while not started:
-            loc=find_image(img_loc+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            loc=find_image(IMG_LOC+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 started=True
             else:
-                time.sleep(0.25)
+                time.sleep(self.interval)
         finished=False
         while not finished:
-            loc=find_image(img_loc+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
+            loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 finished=True
             else:
-                time.sleep(0.25)
+                time.sleep(self.interval)
+        time.sleep(3)
         self.wr_success=True
-        time.sleep(1)
+
         
+    #When you press optimize, first look for the word 'optimizing', then wait for the status bar to be white 
+    #for a few seconds. After that happens, wait for blue to turn up again in the status bar, and at that
+    #point you are ready to take a spectrum.
     def optimize(self):
+        self.opt_complete=False
         self.spec.set_focus()
         keyboard.SendKeys('^O')
+        
+        started=False
+        t=0
+        timeout=10
+        while not started and t<timeout:
+            loc=find_image(IMG_LOC+'/optimizing.png', rect=self.spec.ThunderRT6Frame3.rectangle())
+            if loc != None:
+                started=True
+            else:
+                time.sleep(self.interval)
+                t=t+self.interval
+        if not started:
+            print('opt timed out')
+            raise Exception('Optimization timed out')
+
+        finished=False
+        t=0
+        timeout=int(self.numspectra)
+        print(timeout)
+        while not finished and t<timeout:
+            loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
+            if loc != None:
+                time.sleep(1)
+                loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
+                if loc!=None:
+                    finished=True
+            else:
+                time.sleep(self.interval)
+                t=t+self.interval
+        if not finished:
+            print('opt timed out')
+            raise Exception('Optimization timed out')
+            
+        ready=False
+        t=0
+        timeout=int(self.numspectra)
+        while not ready and t<timeout:
+            loc=find_image(IMG_LOC+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
+            if loc != None:
+                ready=True
+            else:
+                time.sleep(self.interval)
+                t=t+self.interval
+        if not ready:
+            print('opt timed out')
+            raise Exception('Optimization timed out')
+    
+        self.opt_complete=True
+
     
     def instrument_config(self, numspectra):
         pauseafter=False
@@ -116,7 +173,7 @@ class RS3Controller:
 
         config=self.app['Instrument Configuration']
         if config.exists()==False:
-            self.menu.open_control_dialog([img_loc+'/rs3adjustconfig.png',img_loc+'/rs3adjustconfig2.png'])
+            self.menu.open_control_dialog([IMG_LOC+'/rs3adjustconfig.png',IMG_LOC+'/rs3adjustconfig2.png'])
         
         t=0
         while config.exists()==False and t<20:
@@ -147,7 +204,7 @@ class RS3Controller:
             self.nextnum='0'+self.nextnum
         save=self.app['Spectrum Save']
         if save.exists()==False:
-            self.menu.open_control_dialog([img_loc+'/rs3specsave.png',img_loc+'/rs3specsave2.png'])
+            self.menu.open_control_dialog([IMG_LOC+'/rs3specsave.png',IMG_LOC+'/rs3specsave2.png'])
         for _ in range(10):
             save=self.app['Spectrum Save']
             if save.exists():
@@ -172,7 +229,7 @@ class RS3Controller:
             for control in controls:
                 control.draw_outline()
                 rect=control.rectangle()
-                loc=find_image(img_loc+'/rs3ok.png', rect=rect)
+                loc=find_image(IMG_LOC+'/rs3ok.png', rect=rect)
                 if loc != None:
                     control.click_input()
                     okfound=True
@@ -350,10 +407,10 @@ class RS3Menu:
         loc=None
         found=False
         for _ in range(10*timeout):
-            loc=find_image(img_loc+'/rs3control.png',loc=controlregion)
+            loc=find_image(IMG_LOC+'/rs3control.png',loc=controlregion)
             if loc==None:
                 print('looking for image 2')
-                loc=find_image(img_loc+'/rs3control2.png',loc=controlregion)
+                loc=find_image(IMG_LOC+'/rs3control2.png',loc=controlregion)
             if loc !=None:
 
                 x=loc[0]+controlregion[0]
