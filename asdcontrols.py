@@ -40,9 +40,10 @@ class RS3Controller:
         self.failed_to_open=False
         self.numspectra=None
         self.wr_success=False
+        self.wr_failure=False
         self.opt_complete=False
         self.interval=0.25
-        
+        print('Initializing')
         try:
             #print(errortime)
             self.app=Application().connect(path=RS3_loc)
@@ -52,15 +53,15 @@ class RS3Controller:
         print(str(datetime.datetime.now())+'\tConnected to RS3')
         self.spec=None
         self.spec_connected=False
-        while not self.spec_connected:
-            print('Waiting for RS³ to connect to spectrometer.')
-            elements=findwindows.find_elements(process=self.app.process)
-            for el in elements:
-                if el.name=='RS³   18483 1': 
-                    self.spec=self.app['RS³   18483 1']
-                    self.spec_connected=True
-            time.sleep(self.interval)
-        print('RS³ connected to spectrometer.')
+        # while not self.spec_connected:
+        #     print('Waiting for RS³ to connect to spectrometer.')
+        #     elements=findwindows.find_elements(process=self.app.process)
+        #     for el in elements:
+        #         if el.name=='RS³   18483 1': 
+        #             self.spec=self.app['RS³   18483 1']
+        #             self.spec_connected=True
+        #     time.sleep(self.interval)
+        # print('RS³ connected to spectrometer.')
         self.logdir=logdir
         #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
         #self.log=open(share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M),'w')
@@ -68,8 +69,43 @@ class RS3Controller:
         self.spec.draw_outline()
         self.pid=self.app.process
         self.menu=RS3Menu(self.app)
+    
+    def check_connectivity(self):
+        top_window=top=self.app.top_window()
+        try:
+            top_element=findwindows.find_element(handle=top_window.handle)
+            if top_element.name=='TCP Servers Not Found.\r\nCheck Connection':
+                return False
+            elif top_element.name=='Check Connection':
+                return False
+            elif top_element.name=='Searching for TCP Servers...':
+                return False
+
+            elif top_element.name=='TCP Servers Not Found.':
+                return False
+            elif top_element.name=='Check Connection':
+                return False
+            elif top_element.name=='Connecting...':
+                print('Connecting...')
+                return False
+            elif 'Connected to' in top_element.name:
+                return True
+            elif top_element.name=='RS³   18483 1':
+                return True
+            elif 'was lost' in top.element.name:
+                return False
+            else:
+                print('unexpected name:')
+                print(top_element.name)
+                return True
+        except Exception as e:
+            time.sleep(0.1)
+            print('connectivity check repeat')
+            print(e)
+            self.check_connectivity()
         
     def take_spectrum(self, filename):
+        print('spec')
         self.spec.set_focus()
         time.sleep(1)
         pyautogui.press('space')
@@ -90,21 +126,34 @@ class RS3Controller:
     def white_reference(self):
         self.spec.set_focus()
         keyboard.SendKeys('{F4}')
+        start_timeout=10
+        t=0
         started=False
-        while not started:
+        while not started and t<start_timeout:
             loc=find_image(IMG_LOC+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 started=True
             else:
                 time.sleep(self.interval)
+                t+=self.interval
+        if t>=start_timeout:
+            self.wr_failure=True
+            return
+            
+        finish_timeout=10+int(self.numspectra)/9
+        t=0
         finished=False
-        while not finished:
+        while not finished and t<finish_timeout:
             loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC6.rectangle())
             if loc != None:
                 finished=True
             else:
                 time.sleep(self.interval)
-        time.sleep(3)
+                t+=self.interval
+        if t>= finish_timeout:
+            self.wr_failure=True
+            return
+        time.sleep(2)#This is important! Otherwise the spectrum won't be saved because the spacebar will get pushed before RS3 is ready for it.
         self.wr_success=True
 
         
@@ -115,6 +164,7 @@ class RS3Controller:
         self.opt_complete=False
         self.spec.set_focus()
         keyboard.SendKeys('^O')
+        print('hello! I just sent the opt command to RS3!')
         
         started=False
         t=0
@@ -129,11 +179,11 @@ class RS3Controller:
         if not started:
             print('opt timed out')
             raise Exception('Optimization timed out')
-
+        print('Initialized optimization')
+        
         finished=False
         t=0
-        timeout=int(self.numspectra)
-        print(timeout)
+        timeout=10+int(self.numspectra)/9
         while not finished and t<timeout:
             loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
             if loc != None:
@@ -145,12 +195,13 @@ class RS3Controller:
                 time.sleep(self.interval)
                 t=t+self.interval
         if not finished:
-            print('opt timed out')
+            print('opt timed out 1')
             raise Exception('Optimization timed out')
+        print('Completed optimization')
             
         ready=False
         t=0
-        timeout=int(self.numspectra)
+        timeout=10
         while not ready and t<timeout:
             loc=find_image(IMG_LOC+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
             if loc != None:
@@ -161,7 +212,7 @@ class RS3Controller:
         if not ready:
             print('opt timed out')
             raise Exception('Optimization timed out')
-    
+        print('Instrument ready')
         self.opt_complete=True
 
     
@@ -170,30 +221,33 @@ class RS3Controller:
         if self.numspectra==None or int(self.numspectra)<20 or True:
             pauseafter=True
         self.numspectra=numspectra
+        
 
         config=self.app['Instrument Configuration']
         if config.exists()==False:
             self.menu.open_control_dialog([IMG_LOC+'/rs3adjustconfig.png',IMG_LOC+'/rs3adjustconfig2.png'])
         
+        
         t=0
-        while config.exists()==False and t<20:
+        while config.exists()==False and t<10:
             print('waiting for instrument config panel')
-            time.sleep(0.5)
-            t+=1
+            time.sleep(self.interval)
+            t+=self.interval
             
         if config.exists()==False:
             print('ERROR: Failed to open instrument configuration dialog')
             self.failed_to_open=True
             return
+        print('4')
             
         config.Edit3.set_edit_text(str(numspectra))
         config.Edit.set_edit_text(str(numspectra))
         config.set_focus()
         config.ThunderRT6PictureBoxDC.click_input()
-        print('Instrument configuration set with '+str(numspectra)+' spectra being averaged')
         if pauseafter: 
             time.sleep(2)
-            print('ready to go!')
+        print('Instrument configuration set with '+str(numspectra)+' spectra being averaged')
+
         
     def spectrum_save(self, dir, base, startnum, numfiles=1, interval=0, comment=None, new_file_format=False):
         self.save_dir=dir
@@ -205,17 +259,17 @@ class RS3Controller:
         save=self.app['Spectrum Save']
         if save.exists()==False:
             self.menu.open_control_dialog([IMG_LOC+'/rs3specsave.png',IMG_LOC+'/rs3specsave2.png'])
-        for _ in range(10):
+        for _ in range(int(2.5/self.interval)):
             save=self.app['Spectrum Save']
             if save.exists():
                 break
             else:
                 print('no spectrum save yet')
-                time.sleep(0.25)
+                time.sleep(self.interval)
                 
         if save.exists()==False: 
             print('ERROR: Failed to open save dialog')
-            self.failed_to_open=True
+            raise Exception
             return
         save.Edit6.set_edit_text(dir)
         save.Edit7.set_edit_text('')
@@ -394,24 +448,37 @@ class RS3Menu:
 
 
     def open_control_dialog(self, menuitems, timeout=10):
+        print('m1')
         self.spec=self.app['RS³   18483 1']
         if self.spec.exists()==False:
             print('RS3 not found. Failed to open save menu')
             return
+        self.spec.set_focus()
         x_left=self.spec.rectangle().left
         y_top=self.spec.rectangle().top
+        
+        while x_left<-10 or y_top<-10:
+            print('negative')
+            x_left=self.spec.rectangle().left
+            y_top=self.spec.rectangle().top
+            time.sleep(0.25)
+            
         width=300
         height=50
         controlregion=(x_left, y_top, width, height)
-        self.spec.set_focus()
+
         loc=None
         found=False
         for _ in range(10*timeout):
             loc=find_image(IMG_LOC+'/rs3control.png',loc=controlregion)
+            print(loc)
             if loc==None:
                 print('looking for image 2')
                 loc=find_image(IMG_LOC+'/rs3control2.png',loc=controlregion)
-            if loc !=None:
+                time.sleep(0.25)
+            else:
+                print(loc)
+                print(controlregion)
 
                 x=loc[0]+controlregion[0]
                 y=loc[1]+controlregion[1]
@@ -422,11 +489,8 @@ class RS3Menu:
                 for _ in range(4*timeout):
                     loc2=find_image(menuitems[0], loc=menuregion)
                     if loc2==None and len(menuitems)>1:
-                        print('looking for menu item image 2')
-                        print(menuitems)
                         loc2=find_image(menuitems[1], loc=menuregion)
                     if loc2 != None:
-                        print('found menu item')
                         x=loc2[0]+menuregion[0]
                         y=loc2[1]+menuregion[1]
                         mouse.click(coords=(x,y))
@@ -440,10 +504,8 @@ class RS3Menu:
                 #     keyboard.SendKeys('{DOWN}')
                 # keyboard.SendKeys('{ENTER}')
                 break
-            else:
-                print('searching for control')
-                time.sleep(0.1)
         if not found:
+            print('Menu item not found')
             raise Exception('Menu item not found')
 
         
@@ -459,6 +521,7 @@ def wait_for_window(app, title, timeout=5):
     return spec
     
 def find_image(image, rect=None, loc=None):
+
     if rect != None:
         screenshot=pyautogui.screenshot(region=(rect.left, rect.top, rect.width(), rect.height()))
     else:
