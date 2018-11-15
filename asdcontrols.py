@@ -1,6 +1,7 @@
 from pywinauto import Application
 from pywinauto import keyboard
 from pywinauto import findwindows
+import warnings
 import pyautogui
 from pywinauto import mouse
 import imp
@@ -27,6 +28,8 @@ elif computer=='new':
     COLORS['file_highlight']=(0,120,215)
     INDEXNUMLEN=5
 
+warnings.simplefilter('ignore', category=UserWarning)
+
 class RS3Controller:
 
     def __init__(self, share_loc,RS3_loc, logdir, running=False):
@@ -43,14 +46,14 @@ class RS3Controller:
         self.wr_failure=False
         self.opt_complete=False
         self.interval=0.25
-        print('Initializing')
+        
         try:
             #print(errortime)
             self.app=Application().connect(path=RS3_loc)
         except:
-            print('Starting RS³')
+            print('\tStarting RS³')
             self.app=Application().start(RS3_loc)
-        print(str(datetime.datetime.now())+'\tConnected to RS3')
+        print('\tConnected to RS3')
         self.spec=None
         self.spec_connected=False
         # while not self.spec_connected:
@@ -71,7 +74,11 @@ class RS3Controller:
         self.menu=RS3Menu(self.app)
     
     def check_connectivity(self):
-        top_window=top=self.app.top_window()
+        try:
+            top_window=top=self.app.top_window()
+        except Exception as e:
+            print(e)
+            return False
         try:
             top_element=findwindows.find_element(handle=top_window.handle)
             if top_element.name=='TCP Servers Not Found.\r\nCheck Connection':
@@ -80,7 +87,6 @@ class RS3Controller:
                 return False
             elif top_element.name=='Searching for TCP Servers...':
                 return False
-
             elif top_element.name=='TCP Servers Not Found.':
                 return False
             elif top_element.name=='Check Connection':
@@ -88,40 +94,47 @@ class RS3Controller:
             elif top_element.name=='Connecting...':
                 print('Connecting...')
                 return False
+            elif top_element.name=='RS³':
+                return False
+            elif 'was lost' in top_element.name:
+                return False
+            elif top_element.name=='':
+                print('blank name, returning false')
+                return False
+            elif top_element.name=='Unable to collect at current gain and offset values.  Please optimize instrument.':
+                return True
+            elif top_element.name=='Type mismatch':
+                return False
+                
             elif 'Connected to' in top_element.name:
                 return True
             elif top_element.name=='RS³   18483 1':
                 return True
-            elif 'was lost' in top.element.name:
-                return False
+                
             else:
                 print('unexpected name:')
                 print(top_element.name)
                 return True
+                
         except Exception as e:
-            time.sleep(0.1)
-            print('connectivity check repeat')
             print(e)
-            self.check_connectivity()
+            return True
+            time.sleep(0.1)
+            # print('connectivity check repeat')
+            # print(e)
+            # self.check_connectivity()
         
     def take_spectrum(self, filename):
-        print('spec')
         self.spec.set_focus()
         time.sleep(1)
         pyautogui.press('space')
-        #time.sleep(1)
-        #if self.basename != '' and self.save_dir != '' and self.nextnum !=None:s
-        hopeful=''
-        if False:
-            hopeful=self.save_dir+'\\'+self.basename+'.'+self.nextnum
-        elif True:
-            hopeful=filename#self.save_dir+'\\'+self.basename+self.nextnum+'.asd'
+        
+        self.hopefully_saved_files.append(filename) #Know to expect this file in the data directory
+        
         self.nextnum=str(int(self.nextnum)+1)
         while len(self.nextnum)<INDEXNUMLEN:
              self.nextnum='0'+self.nextnum
-        self.hopefully_saved_files.append(hopeful)
-        #else: self.hopefully_saved_files.append('unknown')
-        
+                
         
     def white_reference(self):
         self.spec.set_focus()
@@ -212,6 +225,7 @@ class RS3Controller:
         if not ready:
             print('opt timed out')
             raise Exception('Optimization timed out')
+        time.sleep(1)
         print('Instrument ready')
         self.opt_complete=True
 
@@ -318,7 +332,7 @@ class ViewSpecProController:
             self.app=Application().start(ViewSpecPro_loc)
         self.spec=self.app['ViewSpec Pro    Version 6.2'] 
         self.pid=self.app.process
-        if self.spec.exists(): print('Connected to ViewSpec Pro')
+        if self.spec.exists(): print('\tConnected to ViewSpec Pro')
     def reset(self):
         while self.app.Dialog.exists():
             self.app.Dialog.close()
@@ -331,16 +345,22 @@ class ViewSpecProController:
         self.spec.menu_select('File -> Close')
         self.open_files(input_path)
         time.sleep(1)
+        
         self.set_save_directory(output_path)
         self.splice_correction()
         self.ascii_export(output_path, tsv_name)
+        
+        print('Processing complete. Cleaning directory.')
         self.spec.menu_select('File -> Close')
         files=os.listdir(output_path)
         for file in files:
             if '.sco' in file:
                 os.remove(output_path+'\\'+file)
+        
+        print('Finished.')
     
     def open_files(self, path):
+        print('Opening files from '+path)
         self.spec.menu_select('File -> Open')
         open=wait_for_window(self.app,'Select Input File(s)')
         open.set_focus()
@@ -359,20 +379,20 @@ class ViewSpecProController:
         keyboard.SendKeys('{ENTER}')
     
     def set_save_directory(self,path, force=False):
-        print('setting save directory')
+        #print('setting save directory')
         print(path)
         dict=self.spec.menu().get_properties()
         output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
         self.spec.menu_select('Setup -> '+output_text)
         save=self.app['New Directory Path']
         path_el=path.split('\\')
-        print(path_el)
+        #print('time to try listbox select. Here are the elements:')
+        #print(path_el)
         if path_el[0].upper()=='C:':
             for el in path_el:
                 if el.upper()=='C:': el='c:\\'
-                print('time to try listbox select')
                 save.ListBox.select(el)
-                print(el)
+                #print('Selected '+el)
                 self.select_item(save.ListBox.rectangle())
         else:
             print('Invalid directory (must save to C drive)')
@@ -386,17 +406,22 @@ class ViewSpecProController:
             self.app['Dialog'].Button2.click()
         except:
             pass
+        #print('save directory set!')
         
     
     def splice_correction(self):
+        print('Applying splice correction.')
         self.select_all()
         self.spec.menu_select('Process -> Splice Correction')
         self.app['Splice Correct Gap'].set_focus()
         self.app['Splice Correct Gap'].button1.click_input()
+        time.sleep(0.5)
         self.app['ViewSpecPro'].set_focus()
+        self.app['ViewSpecPro'].button1.draw_outline()
         self.app['ViewSpecPro'].button1.click_input()
         
     def ascii_export(self, path, tsv_name):
+        print('Doing ASCII export.')
         self.select_all()
         self.spec.menu_select('Process -> ASCII Export')
         export=self.app['ASCII Export']
