@@ -89,7 +89,7 @@ def main():
     spec_controller=RS3Controller(share_loc, RS3_loc, logdir, running=RS3_running)
     process_controller=ViewSpecProController(share_loc, ViewSpecPro_loc,logdir, running=ViewSpecPro_running)
     print('Done.\n')
-    print('Ready!')
+    print('Ready!\n')
     logger=Logger()
     
     delme=os.listdir(write_command_loc)
@@ -163,17 +163,7 @@ def main():
                     except PermissionError as e:
                         time.sleep(1)
                         os.remove(read_command_loc+'\\'+file)
-                    # if not connected:
-                    #     print('not connected')
-                    #     if 'retryconnection' in cmd:
-                    #         connected=spec_controller.check_connectivity()
-                    #         if connected:
-                    #             print('reconnected')
-                    #         else:
-                    #             continue
-                    #     else:
-                    #         time.sleep(0.25)
-                    #         continue
+
                     if 'checkwriteable' in cmd:
                         try:
                             os.mkdir(params[0]+'\\autospec_temp')
@@ -306,12 +296,12 @@ def main():
                                 logger.logfile=find_logfile(save_path)
                                 if logger.logfile==None:
                                     logger.logfile=make_logfile(save_path)
-                                print('LOGFILE FOR WRITING:')
-                                print(logger.logfile)
+                                    data_files_to_ignore.append(logger.logfile)
                                 with open(write_command_loc+'\\saveconfigsuccess'+str(cmdnum),'w+') as f:
                                     pass
                                     cmdnum+=1
                         except Exception as e:
+                            print(e)
                             spec_controller.failed_to_open=False
                             with open(write_command_loc+'\\saveconfigerror'+str(cmdnum),'w+') as f:
                                 pass
@@ -395,33 +385,28 @@ def main():
                    
                     elif 'process' in cmd:
                         input_path=params[0] 
-                        print(input_path)                           
                         output_path=params[1]
-                        print(output_path)
                         tsv_name=params[2]
                         logfile_for_reading=params[3]
-                        print(logfile)
                         
                         if input_path=='spec_share_loc':
-                            input_path=share_loc
+                            input_path=temp_data_loc
                         if output_path=='spec_share_loc':
-                            output_path=share_loc
-                        if logfile_for_reading=='proc_temp_log.txt':
+                            output_path=temp_data_loc
+                        if logfile_for_reading=='proc_temp_log.txt': #This was in case the user wanted a local log file, but we're not actually going to support that.
                             logfile_for_reading=share_loc+'\\temp\\proc_temp_log.txt'
                         elif logfile_for_reading=='None':
-                            print('here are files we are looking at')
                             for potential_log in os.listdir(input_path):
                                 if '.txt' in potential_log:
                                     try:
                                         with open(input_path+'\\'+potential_log, 'r') as f:
                                             firstline=f.readline()
-                                            print(firstline)
                                             if '#AutoSpec log' in firstline:
                                                 logfile_for_reading=input_path+'\\'+potential_log
-                                                print(logfile_for_reading)
                                                 break
                                     except Exception as e:
                                         print(e)
+                        print(output_path+'\\'+tsv_name)
                         
                         if os.path.isfile(output_path+'\\'+tsv_name):
                             with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
@@ -430,12 +415,14 @@ def main():
                             cmdfiles0=cmdfiles
                             continue
                         writeable=os.access(output_path,os.W_OK)
-                        try:
-                            print(output_path+'\\delme')
-                            os.mkdir(output_path+'\\delme')
-                            os.removedirs(output_path+'\\delme')
-                        except:
-                            writeable=False
+                        
+                        # try:
+                        #     print(output_path+'\\delme')
+                        #     os.mkdir(output_path+'\\delme')
+                        #     os.removedirs(output_path+'\\delme')
+                        # except:
+                        #     writeable=False
+
                        
                         if not writeable:
                             with open(write_command_loc+'\\processerrorcannotwrite'+str(cmdnum),'w+') as f:
@@ -450,6 +437,10 @@ def main():
                                 temp_output_path=output_path
                             
                             datafile=temp_output_path+'\\'+tsv_name
+                            print()
+                            print(input_path)
+                            print(temp_output_path)
+                            print(tsv_name)
 
                             try:
                                 process_controller.process(input_path, temp_output_path, tsv_name)
@@ -464,20 +455,24 @@ def main():
                                     t=time.clock()
                                 if saved:
                                     #Load headers from the logfile
-                                    warnings=set_headers(datafile, logfile)
-                                    print(warnings)
+                                    print('Loading headers from log file')
+                                    warnings=set_headers(datafile, logfile_for_reading)
+                                    final_datafile=output_path+'\\'+tsv_name #May or may not be the same loc as temporary.
                                     
                                     #If we need to move the final to get it to its final destination, do it!
                                     if temp_output_path!=output_path:
+                                        print('moving data')
                                         tempfilename=datafile
-                                        final_datafile=output_path+'\\'+tsv_name
                                         os.system('move '+tempfilename+' '+final_datafile)
+              
                                     #If the output directory is the same (or within) the data directory, there's no need to alert the user to an unexpected file being introduced since clearly it was expected.
                                     if spec_controller.save_dir!=None and spec_controller.save_dir!='':
+                                        print('in here!')
                                         if spec_controller.save_dir in final_datafile:
-                                            expected=filename.split(spec_controller.save_dir)[1].split('\\')[1]
+                                            print('hi!')
+                                            expected=final_datafile.split(spec_controller.save_dir)[1].split('\\')[1]
                                             spec_controller.hopefully_saved_files.append(expected)
-                                            
+                                    print('success!')
                                     with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
                                         pass
                                 #We don't actually know for sure that processing failed because of failing to optimize or white reference, but ViewSpecPro sometimes silently fails if you haven't been doing those things.
@@ -485,7 +480,8 @@ def main():
                                     with open(write_command_loc+'\\processerrorwropt'+str(cmdnum),'w+') as f:
                                         pass
                                 cmdnum+=1
-                            except:
+                            except Exception as e:
+                                print(e)
                                 process_controller.reset()
                                 with open(write_command_loc+'\\processerror'+str(cmdnum),'w+') as f:
                                     pass
@@ -731,8 +727,6 @@ def find_logfile(directory):
             for d in datestringlist:
                 datestring=datestring+d
             f.write('#AutoSpec log re-opened on '+datestring+'.\n\n')
-    print('logfile found?')
-    print(logfile)
     return logfile
     
 
@@ -763,6 +757,7 @@ def set_headers(datafile,logfile):
         with open(logfile) as log:
             line=log.readline()
             while line!='':
+                print(line)
                 while 'i: ' not in line and line!='':
                     line=log.readline()
                 if 'i:' in line:
@@ -807,7 +802,6 @@ def set_headers(datafile,logfile):
                 data_lines=[]
                 with open(datafile,'r') as data:
                     line=data.readline().strip('\n')
-                    print(line)
                     data_lines.append(line)
                     while line!='':
                         line=data.readline().strip('\n')

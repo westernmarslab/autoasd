@@ -94,6 +94,11 @@ class RS3Controller:
             elif top_element.name=='Connecting...':
                 print('Connecting...')
                 return False
+            elif top_element.name=='Initializing Instrument':
+                print('Initializing...')
+                return False
+            elif 'Unable to connect' in top_element.name:
+                return False
             elif top_element.name=='RS³':
                 return False
             elif 'was lost' in top_element.name:
@@ -150,9 +155,10 @@ class RS3Controller:
                 time.sleep(self.interval)
                 t+=self.interval
         if t>=start_timeout:
+            print('wr failed')
             self.wr_failure=True
             return
-            
+        print('wr started')
         finish_timeout=10+int(self.numspectra)/9
         t=0
         finished=False
@@ -165,8 +171,10 @@ class RS3Controller:
                 t+=self.interval
         if t>= finish_timeout:
             self.wr_failure=True
+            print('wr failed')
             return
         time.sleep(2)#This is important! Otherwise the spectrum won't be saved because the spacebar will get pushed before RS3 is ready for it.
+        print('wr succeeded')
         self.wr_success=True
 
         
