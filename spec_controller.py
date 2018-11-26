@@ -3,7 +3,7 @@ import os
 import imp
 import sys
 import datetime
-import pexpect
+#import pexpect
 from shutil import copyfile
 
 dev=True
