@@ -1,13 +1,13 @@
 import time
 import os
-import imp
+import importlib
 import sys
 import datetime
 #import pexpect
 from shutil import copyfile
 
 dev=True
-computer='new'
+computer='old'
 #computer='new'
 RS3_running=True
 ViewSpecPro_running=False

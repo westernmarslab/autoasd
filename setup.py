@@ -1,10 +1,14 @@
 from setuptools import setup, find_packages
 from os import path
 
+with open("README.txt", "r") as fh:
+    long_description = fh.read()
+
 setup(
-    name='autoasd', 
-    version='0.0.1',
-    description='Control ASD spectroscopy software remotely.',
+    name='AutoAsd', 
+    version='0.1.154',
+    description='Automation script for ASD spectroscopy software.',
+    long_description=long_description,
     url='https://github.com/kathleenhoza/autoasd',  # Optional
 
     author='Kathleen Hoza', 
@@ -12,7 +16,6 @@ setup(
 
     classifiers=[  
         'Development Status :: 3 - Alpha',
-        'Intended Audience :: Spectroscopists',
         'Programming Language :: Python :: 3',
     ],
 
@@ -20,6 +23,11 @@ setup(
 
     packages=['autoasd'],  # Required
 
-    install_requires=['time','os','imp','sys','datetime','shutil','pywinauto','datetime','pyautogui'],
+    package_data={
+        'autoasd': ['img/*','img2/*']
+    },
+
+    install_requires=['pywinauto','pyautogui'],
+    python_requires='>=3'
 
 )
