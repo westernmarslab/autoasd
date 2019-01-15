@@ -1,2 +1,5 @@
+autoasd/__pycache__/
 __pycache__/
-img/
+build/
+dist/
+autoasd.egg-info

@@ -6,7 +6,7 @@ import datetime
 #import pexpect
 from shutil import copyfile
 
-dev=False
+dev=True
 computer='desktop'
 
 timeout=5
@@ -29,13 +29,16 @@ if computer == 'old':
     
 elif computer =='new':
     if dev:
-        sys.path.append('C:\\users\\hozak\\Python\\Autoasd')
-        os.chdir('C:\\users\\hozak\\Python\\Autoasd')
+        sys.path.append('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
+        os.chdir('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
     share_loc='C:\\SpecShare'
     RS3_loc=r"C:\Program Files (x86)\ASD\RS3\RS3.exe"
     ViewSpecPro_loc=r"C:\Program Files (x86)\ASD\ViewSpecPro\ViewSpecPro.exe"
     
 elif computer =='desktop':
+    if dev:
+        sys.path.append('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
+        os.chdir('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
     share_loc='C:\\SpecShare'
     RS3_loc=r"C:\Program Files (x86)\ASD\RS3\RS3.exe"
     ViewSpecPro_loc=r"C:\Program Files (x86)\ASD\ViewSpecPro\ViewSpecPro.exe"
@@ -111,7 +114,6 @@ def main():
     
     data_files_to_ignore=[]
     no_connection=None
-    #count=0
     while True:
         #check connectivity with spectrometer
         connected=spec_controller.check_connectivity()
@@ -128,7 +130,6 @@ def main():
                 if no_connection==None or no_connection==False: #If this is the first time we've realized we aren't connected. It will be None the first time through the loop and True or False afterward.
                     print('Waiting for RS³ to connect to the spectrometer...')
                     no_connection=True #Use this to know to print an announcement if the spectrometer reconnects next time.
-                #print('write!')
                 with open(write_command_loc+'\\lostconnection','w+') as f:
                     pass
                 files=os.listdir(write_command_loc)
@@ -158,9 +159,7 @@ def main():
             for file in cmdfiles:
                 if file not in cmdfiles0:
                     cmd,params=filename_to_cmd(file)
-                    print('Spec compy received command: '+cmd)
-                    print(file)
-                    
+                    print('Command received: '+cmd)
                     try: #Occasionally get already in use error, presumably that is temporary so let's just try again if that happens
                         os.remove(read_command_loc+'\\'+file)
                     except PermissionError as e:
@@ -251,7 +250,7 @@ def main():
                             pass
                         cmdnum+=1
                         
-                    elif 'saveconfig' in cmd:
+                    elif cmd=='saveconfig':
                         save_path=params[0]
 
                         file=check_for_unexpected(save_path, spec_controller.hopefully_saved_files, data_files_to_ignore)
@@ -312,7 +311,7 @@ def main():
 
 
                             
-                    elif 'wr' in cmd and 'writeable' not in cmd: 
+                    elif cmd=='wr': 
                         if spec_controller.save_dir=='':
                             with open(write_command_loc+'\\noconfig'+str(cmdnum),'w+') as f:
                                 pass
@@ -353,14 +352,18 @@ def main():
                         spec_controller.wr_success=False
                         spec_controller.wr_failure=False
                         
-                    elif 'opt' in cmd: 
+                    elif cmd=='opt': 
+                    
+                        #This makes sure that there was always a save configuration set before optimizing. Data files don't get saved during optimization, but this needs to happen anyway because we need to know where to put the log file when we record that we optimized.
                         if spec_controller.save_dir=='':
                             with open(write_command_loc+'\\noconfig'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             cmdfiles0=cmdfiles
                             continue
-                            
+    
+                        
+                        #And, we do need to know how many spectra we are averaging so we know when to time out
                         if spec_controller.numspectra==None:
                             with open(write_command_loc+'\\nonumspectra'+str(cmdnum),'w+') as f:
                                 pass
@@ -371,14 +374,17 @@ def main():
                             spec_controller.optimize()
                             if spec_controller.opt_complete==True:
                                 logger.log_opt()
+                                print('hi')
                                 with open(write_command_loc+'\\optsuccess'+str(cmdnum),'w+') as f:
                                     pass
                                 cmdnum+=1
                             else:
+                                
                                 with open(write_command_loc+'\\optfailure'+str(cmdnum),'w+') as f:
                                     pass
                                 cmdnum+=1
                         except:
+                            print('Exception ocurred and optimization failed.')
                             with open(write_command_loc+'\\optfailure'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -386,7 +392,7 @@ def main():
                     elif 'process' in cmd:
                         input_path=params[0] 
                         output_path=params[1]
-                        tsv_name=params[2]
+                        csv_name=params[2]
                         logfile_for_reading=None #We'll find it in the data folder.
                         
                         if input_path=='spec_share_loc':
@@ -397,6 +403,14 @@ def main():
                         #     logfile_for_reading=share_loc+'\\temp\\proc_temp_log.txt'
                         # elif logfile_for_reading=='None':
                         
+                        #check if the input directory exists. if not, send an error back
+                        if not os.path.exists(input_path):
+                            with open(write_command_loc+'\\processerrornodirectory'+str(cmdnum),'w+') as f:
+                                pass
+                            cmdnum+=1
+                            cmdfiles0=cmdfiles
+                            continue
+                            
                         #Look through files in data directory until you find a log file
                         for potential_log in os.listdir(input_path):
                             if '.txt' in potential_log:
@@ -409,7 +423,7 @@ def main():
                                 except Exception as e:
                                     print(e)
                         
-                        if os.path.isfile(output_path+'\\'+tsv_name):
+                        if os.path.isfile(output_path+'\\'+csv_name):
                             with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -437,12 +451,12 @@ def main():
                             else:
                                 temp_output_path=output_path
                             
-                            datafile=temp_output_path+'\\'+tsv_name
+                            datafile=temp_output_path+'\\'+csv_name
 
                             try:
-                                print('try..')
-                                process_controller.process(input_path, temp_output_path, tsv_name)
-                                print('processssss')
+
+                                process_controller.process(input_path, temp_output_path, csv_name)
+
                                 
                                 #Check that the expected file arrived fine after processing. This sometimes wasn't happening if you fed ViewSpecPro data without taking a white reference or optimizing.
                                 saved=False
@@ -458,8 +472,8 @@ def main():
                                     #Load headers from the logfile
                                     print('Loading headers from log file')
                                     warnings=set_headers(datafile, logfile_for_reading)
-                                    final_datafile=output_path+'\\'+tsv_name #May or may not be the same loc as temporary.
-                                    data_base='.'.join(tsv_name.split('.')[0:-1]) #E.g. for a tsv name of foo.tsv, returns foo
+                                    final_datafile=output_path+'\\'+csv_name #May or may not be the same loc as temporary.
+                                    data_base='.'.join(csv_name.split('.')[0:-1]) #E.g. for a csv name of foo.csv, returns foo
                                     final_logfile=output_path+'\\'+data_base+'_log' #We're going to copy the logfile along with it, givnig it a sensible name e.g. foo_log.txt
                                     print(final_logfile)
                                     
@@ -569,8 +583,11 @@ def main():
                     elif 'listdir' in cmd:
                         try:
                             dir=params[0]
+                            print(dir)
                             if dir[-1]!='\\':dir+='\\'
                             cmdfilename=cmd_to_filename(cmd,[params[0]])
+                            print('cmdfilename:')
+                            print(cmdfilename)
                             files=os.listdir(dir)
                             with open(write_command_loc+'\\'+cmdfilename,'w+') as f:
                                 for file in files:
@@ -591,6 +608,7 @@ def main():
                         
                     #List directories and files in a folder for the remote file explorer on the control compy
                     elif 'listcontents' in cmd:
+                        
 
                         try:
                             dir=params[0]
@@ -679,6 +697,9 @@ def main():
         
 def filename_to_cmd(filename):
     cmd=filename.split('&')[0]
+    if 'listdir' not in cmd and 'listcontents' not in cmd: #For listdir, we need to remember the cmd number sent over - the control compy will be watching for an exact filename match.
+        while cmd[-1] in '1234567890':
+            cmd=cmd[0:-1]
     params=filename.split('&')[1:]
     i=0
     for param in params:
@@ -811,10 +832,8 @@ def set_headers(datafile,logfile):
                     nextfile=None
                     nextnote=None
                 line=log.readline()
-            if len(labels)==0:
-                return 'nolabels'
+            if len(labels)!=0:
 
-            else:
                 data_lines=[]
                 with open(datafile,'r') as data:
                     line=data.readline().strip('\n')
@@ -860,7 +879,46 @@ def set_headers(datafile,logfile):
                     for line in data_lines:
                         data.write(line+'\n')
             
-            if unknown_num==0:
+            #Now reformat data to fit WWU spectral library format. 
+            data=[]
+            metadata=['Database of origin:,Western Washington University Planetary Spectroscopy Lab','Sample Name','Viewing Geometry']
+
+            for i, line in enumerate(data_lines):
+                if i==0:
+                    headers=line.split('\t')
+                    headers[-1]=headers[-1].strip('\n')
+                    for i, header in enumerate(headers):
+                        if i==0:
+                            continue
+                        #If sample names and geoms were read successfully from logfile, this should always work fine. But in case logfile is missing or badly formatted, don't break, just don't have geom info either.
+                        try:
+                            sample_name=header.split('(')[0]
+                        except:
+                            sample_name=header
+                        try:
+                            geom=header.split('(')[1].strip(')')
+                            print(geom)
+                        except:
+                            geom=''
+                        metadata[1]+=','+sample_name
+                        metadata[2]+=','+geom
+                    metadata.append('')
+                    metadata.append('Wavelength')
+        
+                else:
+                    data.append(line.replace('\t',','))
+                        
+            with open(datafile,'w+') as file:
+                for line in metadata:
+                    file.write(line)
+                    file.write('\n')
+                for line in data:
+                    file.write(line)
+                    file.write('\n')
+
+            if len(labels)==0:
+                return 'nolabels'
+            elif unknown_num==0:
                 return ''#No warnings
             elif unknown_num==1:
                 return '1unknown' #This will succeed but the control computer will print a warning that not all samples were labeled. Knowing if it was one or more than one just helps with grammar.
@@ -913,13 +971,15 @@ class Logger():
             
         if info_string[-2:-1]!='\n':
             info_string+='\n'
-    
+            
+        print(info_string)
+        print('\n')
+        print(self.logfile)
         with open(self.logfile,'a') as log:
             log.write(info_string)
             log.write('\n')
         
-        print(info_string)
-        print('\n')
+
 
 if __name__=='__main__':
     main()

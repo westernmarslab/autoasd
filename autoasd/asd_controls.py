@@ -105,7 +105,6 @@ class RS3Controller:
             elif 'was lost' in top_element.name:
                 return False
             elif top_element.name=='':
-                print('blank name, returning True')
                 return True
             elif top_element.name=='About':
                 print('About, returning false')
@@ -201,13 +200,14 @@ class RS3Controller:
             loc=find_image(IMG_LOC+'/optimizing.png', rect=self.spec.ThunderRT6Frame3.rectangle())
             if loc != None:
                 started=True
+                print('Initialized optimization')
             else:
-                time.sleep(self.interval)
-                t=t+self.interval
+                t+=.1 #Note there is no sleeping. If we sleep, we might miss the words appearing on the screen, which aren't always there for long.
+                if t%1==0: print(t)
         if not started:
             print('opt timed out')
             raise Exception('Optimization timed out')
-        print('Initialized optimization')
+        
         
         finished=False
         t=0
@@ -215,10 +215,15 @@ class RS3Controller:
         while not finished and t<timeout:
             loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
             if loc != None:
-                time.sleep(1)
-                loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
-                if loc!=None:
-                    finished=True
+                print('Found white status')
+                while not finished and t<timeout:
+
+                    loc=find_image(IMG_LOC+'/white_status.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
+                    if loc!=None:
+                        finished=True
+                    else:
+                        time.sleep(self.interval)
+                        t=t+self.interval
             else:
                 time.sleep(self.interval)
                 t=t+self.interval
@@ -433,11 +438,13 @@ class ViewSpecProController:
     
     def splice_correction(self):
         print('Applying splice correction.')
+        delay=self.spec.ListBox.ItemCount()/40+0.5 #We'll wait this long before clicking a button later.
+        print(delay)
         self.select_all()
         self.spec.menu_select('Process -> Splice Correction')
         self.app['Splice Correct Gap'].set_focus()
         self.app['Splice Correct Gap'].button1.click_input()
-        time.sleep(0.5)
+        time.sleep(delay) #Needs to be longer depending on how many files you are processing.
         self.app['ViewSpecPro'].set_focus()
         self.app['ViewSpecPro'].button1.draw_outline()
         self.app['ViewSpecPro'].button1.click_input()
@@ -463,12 +470,14 @@ class ViewSpecProController:
         save.set_focus()
         time.sleep(2)
         save.OKButton.click_input()
+        time.sleep(5)
         self.app['Dialog'].OKButton.click()
         
         
     def select_all(self):
         for i in range(self.spec.ListBox.ItemCount()):
             self.spec.ListBox.select(i)
+        
         
     def select_item(self,rectangle):
         #set start position at center top of listbox
@@ -500,6 +509,7 @@ class RS3Menu:
             print('RS3 not found. Failed to open save menu')
             return
         self.spec.set_focus()
+        time.sleep(0.25) #Not sure if this is needed. On desktop, was clicking inside pyzo sometimes.
         x_left=self.spec.rectangle().left
         y_top=self.spec.rectangle().top
         
@@ -522,8 +532,7 @@ class RS3Menu:
                 loc=find_image(IMG_LOC+'/rs3control2.png',loc=controlregion)
                 time.sleep(0.25)
             else:
-                print(loc)
-                print(controlregion)
+
 
                 x=loc[0]+controlregion[0]
                 y=loc[1]+controlregion[1]
