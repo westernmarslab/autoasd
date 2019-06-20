@@ -37,8 +37,8 @@ elif computer =='new':
     
 elif computer =='desktop':
     if dev:
-        sys.path.append('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
-        os.chdir('C:\\users\\hozak\\Python\\AutoASD\\autoasd')
+        sys.path.append('C:\\AutoASD\\autoasd')
+        os.chdir('C:\\AutoASD\\autoasd')
     share_loc='C:\\SpecShare'
     RS3_loc=r"C:\Program Files (x86)\ASD\RS3\RS3.exe"
     ViewSpecPro_loc=r"C:\Program Files (x86)\ASD\ViewSpecPro\ViewSpecPro.exe"
@@ -46,6 +46,9 @@ elif computer =='desktop':
 import asd_controls
 from asd_controls import RS3Controller
 from asd_controls import ViewSpecProController
+
+import spectralon_corrector
+from spectralon_corrector import apply_spectralon_correction
 
 read_command_loc=share_loc+'\\commands\\from_control'
 write_command_loc=share_loc+'\\commands\\from_spec'
@@ -62,20 +65,6 @@ if dev:
 def main():
     print('Starting AutoASD...\n')
     cmdnum=0
-    #logpath='C:/Users/RS3Admin/hozak/log.txt'
-    #logpath='C:/SpecShare/log/log.txt'      
-    # logdir=share_loc+'\\log\\'+datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
-    # try:
-    #     os.mkdir(logdir)
-    # except(FileExistsError):
-    #     try:
-    #         os.mkdir(logdir+'_2')
-    #     except:
-    #         print('Seriously?')
-    # logline='test'
-    # open(logdir+'\\'+logline,'w+').close()
-    # # with open(logpath, 'w+') as log:
-    # #     log.write('Intiating listener on spec compy')
 
     print('Removing old commands and temporary data...')
     delme=os.listdir(read_command_loc)
@@ -95,10 +84,6 @@ def main():
         
     print('Done.\n')
         
-    # with open(write_command_loc+'\\started'+str(cmdnum),'w+') as f:
-    #         pass
-    # cmdnum+=1
-
     print('Initializing ASD connections...')
     spec_controller=RS3Controller(share_loc, RS3_loc)
     process_controller=ViewSpecProController(share_loc, ViewSpecPro_loc)
@@ -121,12 +106,7 @@ def main():
             try:
                 #Let's not accumulate 500000 files
                 files=os.listdir(write_command_loc)
-                # for i, file in files:
-                #     if i==0:
-                #         pass
-                #     elif 'lostconnection' in file:
-                #         os.remove(file)
-                #         print(file)
+
                 if no_connection==None or no_connection==False: #If this is the first time we've realized we aren't connected. It will be None the first time through the loop and True or False afterward.
                     print('Waiting for RS³ to connect to the spectrometer...')
                     no_connection=True #Use this to know to print an announcement if the spectrometer reconnects next time.
@@ -399,9 +379,7 @@ def main():
                             input_path=temp_data_loc
                         if output_path=='spec_share_loc':
                             output_path=temp_data_loc
-                        # if logfile_for_reading=='log_temp.txt': #This was in case the user wanted a local log file, but we're not actually going to support that.
-                        #     logfile_for_reading=share_loc+'\\temp\\proc_temp_log.txt'
-                        # elif logfile_for_reading=='None':
+
                         
                         #check if the input directory exists. if not, send an error back
                         if not os.path.exists(input_path):
@@ -423,26 +401,34 @@ def main():
                                 except Exception as e:
                                     print(e)
                         
-                        if os.path.isfile(output_path+'\\'+csv_name):
+                        if os.path.isfile(output_path+'\\'+csv_name) and csv_name != 'plot_temp.csv':
                             with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             cmdfiles0=cmdfiles
                             continue
+                        elif os.path.isfile(output_path+'\\'+csv_name):
+                            print('overwriting plot_temp')
+                            writeable=os.access(output_path,os.W_OK)
+                            if not writeable:
+                                with open(write_command_loc+'\\processerrorcannotwrite'+str(cmdnum),'w+') as f:
+                                    pass
+                                cmdnum+=1
+                                cmdfiles0=cmdfiles
+                                continue
+                                
+                            os.remove(output_path+'\\'+csv_name)
+                            
                         writeable=os.access(output_path,os.W_OK)
                         
-                        # try:
-                        #     print(output_path+'\\delme')
-                        #     os.mkdir(output_path+'\\delme')
-                        #     os.removedirs(output_path+'\\delme')
-                        # except:
-                        #     writeable=False
 
                        
                         if not writeable:
                             with open(write_command_loc+'\\processerrorcannotwrite'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
+                            cmdfiles0=cmdfiles
+                            continue
                             
                         #If the specified output path is in the C drive, we can write straight to it. Otherwise, we're going to temporarily store the file in C:\\SpecShare\\temp
                         else:
@@ -472,6 +458,9 @@ def main():
                                     #Load headers from the logfile
                                     print('Loading headers from log file')
                                     warnings=set_headers(datafile, logfile_for_reading)
+                                    print('applying correction')
+                                    apply_spectralon_correction(datafile) #applies a correction based on measured BRDF for spectralon (see Biliouris et al 2007?)
+                                    print('done')
                                     final_datafile=output_path+'\\'+csv_name #May or may not be the same loc as temporary.
                                     data_base='.'.join(csv_name.split('.')[0:-1]) #E.g. for a csv name of foo.csv, returns foo
                                     final_logfile=output_path+'\\'+data_base+'_log' #We're going to copy the logfile along with it, givnig it a sensible name e.g. foo_log.txt
@@ -565,19 +554,7 @@ def main():
                                 pass
                             cmdnum+=1
                             
-                    # elif 'senddata' in cmd:
-                    #     print('source: '+params[0])
-                    #     print('destination: '+params[1]
-                    #     try:
-                    #         copyfile(params[0],data_loc+'\\'+params[1])
-                    #         with open(write_command_loc+'\\datacopied'+str(cmdnum),'w+') as f:
-                    #             pass
-                    #         cmdnum+=1
-                    #     except Exception as e:
-                    #         print(str(e))
-                    #         with open(write_command_loc+'\\datafailure'+str(cmdnum),'w+') as f:
-                    #             pass
-                    #         cmdnum+=1
+
                             
                     #List directories within a folder for the remote file explorer on the control compy
                     elif 'listdir' in cmd:
