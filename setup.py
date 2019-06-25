@@ -6,9 +6,9 @@ with open("README.txt", "r") as fh:
 
 setup(
     name='AutoAsd', 
-    version='0.1.154',
+    version='0.2.1',
     description='Automation script for ASD spectroscopy software.',
-    long_description=long_description,
+    #long_description=long_description,
     url='https://github.com/kathleenhoza/autoasd',  # Optional
 
     author='Kathleen Hoza', 

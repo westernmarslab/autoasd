@@ -191,11 +191,10 @@ class RS3Controller:
         self.opt_complete=False
         self.spec.set_focus()
         keyboard.SendKeys('^O')
-        print('hello! I just sent the opt command to RS3!')
         
         started=False
         t=0
-        timeout=10
+        timeout=30
         while not started and t<timeout:
             loc=find_image(IMG_LOC+'/optimizing.png', rect=self.spec.ThunderRT6Frame3.rectangle())
             if loc != None:
@@ -203,7 +202,7 @@ class RS3Controller:
                 print('Initialized optimization')
             else:
                 t+=.1 #Note there is no sleeping. If we sleep, we might miss the words appearing on the screen, which aren't always there for long.
-                if t%1==0: print(t)
+                print(t)
         if not started:
             print('opt timed out')
             raise Exception('Optimization timed out')
@@ -438,16 +437,23 @@ class ViewSpecProController:
     
     def splice_correction(self):
         print('Applying splice correction.')
-        delay=self.spec.ListBox.ItemCount()/40+0.5 #We'll wait this long before clicking a button later.
+        delay=self.spec.ListBox.item_count()/40+0.5 #We'll wait this long before clicking a button later.
         print(delay)
         self.select_all()
         self.spec.menu_select('Process -> Splice Correction')
         self.app['Splice Correct Gap'].set_focus()
         self.app['Splice Correct Gap'].button1.click_input()
         time.sleep(delay) #Needs to be longer depending on how many files you are processing.
-        self.app['ViewSpecPro'].set_focus()
-        self.app['ViewSpecPro'].button1.draw_outline()
-        self.app['ViewSpecPro'].button1.click_input()
+        try:
+            self.app['ViewSpecPro'].set_focus()
+            self.app['ViewSpecPro'].button1.draw_outline()
+            self.app['ViewSpecPro'].button1.click_input()
+        except:
+            print('Could not find dialog. Retrying')
+            time.sleep(delay)
+            self.app['ViewSpecPro'].set_focus()
+            self.app['ViewSpecPro'].button1.draw_outline()
+            self.app['ViewSpecPro'].button1.click_input()
         
     def ascii_export(self, path, tsv_name):
         print('Doing ASCII export.')
@@ -475,7 +481,7 @@ class ViewSpecProController:
         
         
     def select_all(self):
-        for i in range(self.spec.ListBox.ItemCount()):
+        for i in range(self.spec.ListBox.item_count()):
             self.spec.ListBox.select(i)
         
         

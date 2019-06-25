@@ -210,12 +210,12 @@ def main():
                                 
                         #Now wait for the data file to turn up where it belongs.
                         saved=False
-                        t0=time.clock()
-                        t=time.clock()
+                        t0=time.perf_counter()
+                        t=time.perf_counter()
                         while t-t0<int(spec_controller.numspectra)*4 and saved==False: #Depending on the number of spectra we are averaging, this might take a while.
                             saved=os.path.isfile(filename)
                             time.sleep(0.2)
-                            t=time.clock()
+                            t=time.perf_counter()
                         print(filename+' saved and found?:'+ str(saved))
 
                         if saved:
@@ -275,7 +275,8 @@ def main():
                                 logger.logfile=find_logfile(save_path)
                                 if logger.logfile==None:
                                     logger.logfile=make_logfile(save_path)
-                                    data_files_to_ignore.append(logger.logfile)
+                                    data_files_to_ignore.append(logger.logfile.split('\\')[-1])
+
                                 with open(write_command_loc+'\\saveconfigsuccess'+str(cmdnum),'w+') as f:
                                     pass
                                     cmdnum+=1
@@ -354,7 +355,6 @@ def main():
                             spec_controller.optimize()
                             if spec_controller.opt_complete==True:
                                 logger.log_opt()
-                                print('hi')
                                 with open(write_command_loc+'\\optsuccess'+str(cmdnum),'w+') as f:
                                     pass
                                 cmdnum+=1
@@ -400,15 +400,18 @@ def main():
                                             break
                                 except Exception as e:
                                     print(e)
+                                    
+                        if logfile_for_reading==None:
+                            print('ERROR: No logfile found in data directory')
                         
-                        if os.path.isfile(output_path+'\\'+csv_name) and csv_name != 'plot_temp.csv':
+                        if os.path.isfile(output_path+'\\'+csv_name) and csv_name != 'proc_temp.csv':
                             with open(write_command_loc+'\\processerrorfileexists'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
                             cmdfiles0=cmdfiles
                             continue
                         elif os.path.isfile(output_path+'\\'+csv_name):
-                            print('overwriting plot_temp')
+                            print('overwriting proc_temp')
                             writeable=os.access(output_path,os.W_OK)
                             if not writeable:
                                 with open(write_command_loc+'\\processerrorcannotwrite'+str(cmdnum),'w+') as f:
@@ -446,20 +449,29 @@ def main():
                                 
                                 #Check that the expected file arrived fine after processing. This sometimes wasn't happening if you fed ViewSpecPro data without taking a white reference or optimizing.
                                 saved=False
-                                t0=time.clock()
-                                t=time.clock()
-                                print('saved?')
+                                t0=time.perf_counter()
+                                t=time.perf_counter()
                                 while t-t0<5 and saved==False:
                                     saved=os.path.isfile(datafile)
                                     time.sleep(0.2)
-                                    t=time.clock()
-                                print('done waiting')
+                                    t=time.perf_counter()
+                                corrected=False
                                 if saved:
-                                    #Load headers from the logfile
-                                    print('Loading headers from log file')
-                                    warnings=set_headers(datafile, logfile_for_reading)
-                                    print('applying correction')
-                                    apply_spectralon_correction(datafile) #applies a correction based on measured BRDF for spectralon (see Biliouris et al 2007?)
+                                    #Load headers from the logfile, then apply correction
+                                    if logfile_for_reading!=None:
+                                        print('Loading headers from log file')
+                                        warnings=set_headers(datafile, logfile_for_reading)
+                                        print('applying correction')
+                                        try:
+                                            apply_spectralon_correction(datafile) #applies a correction based on measured BRDF for spectralon (see Biliouris et al 2007?)
+                                            corrected=True
+                                        except:
+                                            print('warning! correction not applied')
+                                    else:
+                                        print('Warning! No log file found!')
+                                        tsv_to_csv(datafile) #still replace tabs with commas
+                                        warnings='no log found'
+                                    
                                     print('done')
                                     final_datafile=output_path+'\\'+csv_name #May or may not be the same loc as temporary.
                                     data_base='.'.join(csv_name.split('.')[0:-1]) #E.g. for a csv name of foo.csv, returns foo
@@ -473,27 +485,35 @@ def main():
                                         final_logfile=logfile_base+'_'+str(i)
                                         i+=1
                                     final_logfile+='.txt'
-                                    print(final_logfile)
                                     #Ok, now copy!
-                                    os.system('copy '+logfile_for_reading+' '+final_logfile)
-                                    print('copied')
-                                    #If we need to move the data to get it to its final destination, do it!
+                                    if logfile_for_reading !=None:
+                                        os.system('copy '+logfile_for_reading+' '+final_logfile)
+                                        print(output_path)
+                                        print(spec_controller.save_dir)
+                                        if output_path==spec_controller.save_dir:
+                                            print(final_logfile.split('\\')[-1])
+                                            data_files_to_ignore.append(final_logfile.split('\\')[-1])
+                                        #If we need to move the data to get it to its final destination, do it!
                                     if temp_output_path!=output_path:
-                                        print('moving data')
                                         tempfilename=datafile
                                         os.system('move '+tempfilename+' '+final_datafile)
                                         
               
                                     #If the output directory is the same (or within) the data directory, there's no need to alert the user to an unexpected file being introduced since clearly it was expected.
                                     if spec_controller.save_dir!=None and spec_controller.save_dir!='':
-                                        print('in here!')
                                         if spec_controller.save_dir in final_datafile:
-                                            print('hi!')
                                             expected=final_datafile.split(spec_controller.save_dir)[1].split('\\')[1]
                                             spec_controller.hopefully_saved_files.append(expected)
-                                    print('success!')
-                                    with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
-                                        pass
+                                            
+                                    if corrected==True and logfile_for_reading!=None:
+                                        with open(write_command_loc+'\\processsuccess'+str(cmdnum),'w+') as f:
+                                            pass
+                                    elif logfile_for_reading!=None:
+                                        with open(write_command_loc+'\\processsuccessnocorrection'+str(cmdnum),'w+') as f:
+                                            pass
+                                    else:
+                                        with open(write_command_loc+'\\processsuccessnolog'+str(cmdnum),'w+') as f:
+                                            pass
                                 #We don't actually know for sure that processing failed because of failing to optimize or white reference, but ViewSpecPro sometimes silently fails if you haven't been doing those things.
                                 else:
                                     with open(write_command_loc+'\\processerrorwropt'+str(cmdnum),'w+') as f:
@@ -760,6 +780,28 @@ def make_logfile(directory):
         f.write('#AutoSpec log initialized on '+datestring+'.\n\n')
         
     return directory+'\\'+logfile
+
+#convert to csv
+def tsv_to_csv(datafile):
+    data=[]
+    with open(datafile, 'r') as file:
+        line=file.readline()
+        while line != '':
+            data.append(line.replace('\t',','))
+            line=file.readline()
+        with open(datafile,'w+') as file:
+            for i, line in enumerate(data):
+                if i==0:
+                    file.write('Sample Name:'+line.strip('Wavelength'))
+                    w_line='Wavelength'
+                    for _ in range(len(line.split(','))-1):
+                        w_line+=','
+                    file.write(w_line+'\n')
+                else:
+                    file.write(line)
+    print('converted to .csv')
+            
+        
     
 def set_headers(datafile,logfile):
     
@@ -771,9 +813,8 @@ def set_headers(datafile,logfile):
         with open(logfile) as log:
             line=log.readline()
             while line!='':
-                print(line)
                 while 'i: ' not in line and line!='':
-                    line=log.readline()
+                    line=log.readline() #skip the first few lines until you get to viewing geometry
                 if 'i:' in line:
                     try:
                         nextnote=' (i='+line.split('i: ')[-1].strip('\n')
