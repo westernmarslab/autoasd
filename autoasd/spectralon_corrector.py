@@ -22,9 +22,7 @@ def apply_spectralon_correction(file):
     x,y,p=get_data('spec_correction_i45.csv')
     fit=fit_data(x, p)
     correction_coefficients.append({-45:p})
-    
 
-    
     
     x,y,p=get_data('spec_correction_i60.csv')
     x1,y1,p1=get_data('spec_correction_i60_off_plane.csv')

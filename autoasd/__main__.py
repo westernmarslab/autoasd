@@ -364,7 +364,7 @@ def main():
                                     pass
                                 cmdnum+=1
                         except:
-                            print('Exception ocurred and optimization failed.')
+                            print('Exception occurred and optimization failed.')
                             with open(write_command_loc+'\\optfailure'+str(cmdnum),'w+') as f:
                                 pass
                             cmdnum+=1
@@ -456,6 +456,9 @@ def main():
                                     time.sleep(0.2)
                                     t=time.perf_counter()
                                 corrected=False
+                                if not saved:
+                                    print('not saved??')
+                                    print(datafile)
                                 if saved:
                                     #Load headers from the logfile, then apply correction
                                     if logfile_for_reading!=None:
@@ -800,8 +803,7 @@ def tsv_to_csv(datafile):
                 else:
                     file.write(line)
     print('converted to .csv')
-            
-        
+  
     
 def set_headers(datafile,logfile):
     
@@ -941,10 +943,8 @@ def set_headers(datafile,logfile):
             elif unknown_num==1:
                 return '1unknown' #This will succeed but the control computer will print a warning that not all samples were labeled. Knowing if it was one or more than one just helps with grammar.
 
-                
             elif unknown_num>1:
                 return 'unknowns'
-
     else:
         return 'nolog'
 

@@ -55,18 +55,6 @@ class RS3Controller:
         print('\tConnected to RS3')
         self.spec=None
         self.spec_connected=False
-        # while not self.spec_connected:
-        #     print('Waiting for RS³ to connect to spectrometer.')
-        #     elements=findwindows.find_elements(process=self.app.process)
-        #     for el in elements:
-        #         if el.name=='RS³   18483 1': 
-        #             self.spec=self.app['RS³   18483 1']
-        #             self.spec_connected=True
-        #     time.sleep(self.interval)
-        # print('RS³ connected to spectrometer.')
-        #self.logdir=logdir
-        #logpath=self.share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M)
-        #self.log=open(share_loc+'\log'+datetime.datetime.now().strftime(%Y-%m-%d-%H-%M),'w')
         self.spec=self.app.ThunderRT6Form
         self.spec.draw_outline()
         self.pid=self.app.process
@@ -130,10 +118,7 @@ class RS3Controller:
         except Exception as e:
             print(e)
             return True
-            time.sleep(0.1)
-            # print('connectivity check repeat')
-            # print(e)
-            # self.check_connectivity()
+
         
     def take_spectrum(self, filename):
         self.spec.set_focus()
@@ -202,12 +187,12 @@ class RS3Controller:
                 print('Initialized optimization')
             else:
                 t+=.1 #Note there is no sleeping. If we sleep, we might miss the words appearing on the screen, which aren't always there for long.
-                print(t)
+                if t%5==0: print(t)
         if not started:
             print('opt timed out')
             raise Exception('Optimization timed out')
-        
-        
+
+        time.sleep(int(self.numspectra)/100) #make sure we don't find the white status bar while it is still getting set up instead of after it completes.
         finished=False
         t=0
         timeout=10+int(self.numspectra)/9
@@ -233,7 +218,7 @@ class RS3Controller:
             
         ready=False
         t=0
-        timeout=10
+        timeout=10+int(self.numspectra)/9
         while not ready and t<timeout:
             loc=find_image(IMG_LOC+'/status_color.png', rect=self.spec.ThunderRT6PictureBoxDC5.rectangle())
             if loc != None:
@@ -242,9 +227,10 @@ class RS3Controller:
                 time.sleep(self.interval)
                 t=t+self.interval
         if not ready:
-            print('opt timed out')
+            print('opt timed out 2')
             raise Exception('Optimization timed out')
-        time.sleep(1)
+        sleep=int(self.numspectra)/500+1
+        time.sleep(sleep)
         print('Instrument ready')
         self.opt_complete=True
 
@@ -271,9 +257,8 @@ class RS3Controller:
             print('ERROR: Failed to open instrument configuration dialog')
             self.failed_to_open=True
             return
-        print('4')
             
-        config.Edit3.set_edit_text(str(numspectra))
+        config.Edit3.set_edit_text(str(numspectra)) #probably done twice to set numspectra for wr and taking spectra.
         config.Edit.set_edit_text(str(numspectra))
         config.set_focus()
         config.ThunderRT6PictureBoxDC.click_input()
