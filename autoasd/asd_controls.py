@@ -462,7 +462,16 @@ class ViewSpecProController:
         time.sleep(2)
         save.OKButton.click_input()
         time.sleep(5)
-        self.app['Dialog'].OKButton.click()
+        try:
+            self.app['Dialog'].OKButton.click()
+        except:
+            time.sleep(30)
+            try:
+                self.app['Dialog'].OKButton.click()
+            except:
+                while 'Dialog' not in self.app:
+                    time.sleep(10)
+                self.app['Dialog'].OKButton.click()
         
         
     def select_all(self):
