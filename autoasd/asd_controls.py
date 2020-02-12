@@ -467,10 +467,12 @@ class ViewSpecProController:
         except:
             time.sleep(30)
             try:
+                print('Retrying')
                 self.app['Dialog'].OKButton.click()
             except:
-                timeout=600
+                timeout=800
                 while 'Dialog' not in self.app and timeout>0:
+                    print('Still looking...')
                     time.sleep(10)
                     timeout-=10
                 self.app['Dialog'].OKButton.click()

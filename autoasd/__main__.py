@@ -6,7 +6,7 @@ import datetime
 #import pexpect
 from shutil import copyfile
 
-dev=True
+dev=False
 computer='desktop'
 
 timeout=5
@@ -18,6 +18,7 @@ if not dev:
     dir='\\'.join(__file__.split('\\')[0:-1])
     sys.path.append(dir)
     os.chdir(dir)
+    print('Working in '+dir)
 
 if computer == 'old': 
     if dev:
@@ -451,7 +452,7 @@ def main():
                                 saved=False
                                 t0=time.perf_counter()
                                 t=time.perf_counter()
-                                while t-t0<5 and saved==False:
+                                while t-t0<20 and saved==False:
                                     saved=os.path.isfile(datafile)
                                     time.sleep(0.2)
                                     t=time.perf_counter()
@@ -917,7 +918,6 @@ def set_headers(datafile,logfile):
                             sample_name=header
                         try:
                             geom=header.split('(')[1].strip(')')
-                            print(geom)
                         except:
                             geom=''
                         metadata[1]+=','+sample_name

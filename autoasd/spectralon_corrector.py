@@ -1,36 +1,42 @@
 import matplotlib .pyplot as plt
 import numpy as np
+import os
 
 def apply_spectralon_correction(file):
-    #plt.close('all')
     file2=file #overwrite file you are given
     correction_coefficients=[]
-
+    print('Loading data for i=0')
+    print(os.getcwd())
     x,y,p=get_data('spec_correction_i0.csv')
     x1,y1,p1=get_data('spec_correction_i0_off_plane.csv')
     x2,y2,p2=get_data('spec_correction_i0_405nm.csv')
+    print('Loaded')
     fit=fit_data(x, p)
     correction_coefficients.append({0:p})
 
-    
+    print('Loading data for i=30')
     x,y,p=get_data('spec_correction_i30.csv')
     fit=fit_data(x, p)
     correction_coefficients.append({-30:p})
-    
+    print('Loaded')
 
-    
+    print('Loading data for i=45')
     x,y,p=get_data('spec_correction_i45.csv')
     fit=fit_data(x, p)
     correction_coefficients.append({-45:p})
-
+    print('Loaded')
     
+    print('Loading data for i=45')
     x,y,p=get_data('spec_correction_i60.csv')
     x1,y1,p1=get_data('spec_correction_i60_off_plane.csv')
     x2,y2,p2=get_data('spec_correction_i60_405nm.csv')
     fit=fit_data(x, p)
     correction_coefficients.append({-60:p})
+    print('Loaded')
 
+    print('loading data')
     wavelengths, reflectance, labels=load_csv(file)
+    print('Loaded')
     
     corrected_data=[]
     corrected_data.append(wavelengths)
@@ -45,6 +51,7 @@ def apply_spectralon_correction(file):
             k=k+1
             j=j+1
         k=k+1
+    print('next')
     for k in range(len(labels)):
         if 'Uncorrected' in labels[k]:
             continue
@@ -90,7 +97,7 @@ def apply_spectralon_correction(file):
         else:
             correction=left_correction
         corrected_data.append(np.array(reflectance[k])*correction)
-
+    print('next')
     corrected_data_zip=zip(*corrected_data)
     corrected_data=np.array(list(corrected_data_zip))
 
@@ -183,11 +190,11 @@ def plot_data(x,y,y2, title,xlabel,ylabel,image=None):
     ax.set_ylabel(ylabel,fontsize=12)
     ax.set_xlabel(xlabel,fontsize=12)
     return ax
-    plt.tight_layout()
     
 
     
 def get_data(file):
+    file='spectralon_data\\'+file
     data=np.genfromtxt(file,delimiter=',')
     data=zip(*data)
     for i, d in enumerate(data):
@@ -203,5 +210,6 @@ def get_data(file):
 def fit_data(x, p):
     fit=p[10]+p[9]*x+p[8]*x**2+p[7]*x**3+p[6]*x**4+p[5]*x**5+p[4]*x**6+p[3]*x**7+p[2]*x**8+p[1]*x**9+p[0]*x**10
     return fit
+
 if __name__=='__main__':
-    main()
+    apply_spectralon_correction('foo')

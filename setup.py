@@ -6,7 +6,7 @@ with open("README.txt", "r") as fh:
 
 setup(
     name='AutoAsd', 
-    version='0.2.2',
+    version='0.2.6',
     description='Automation script for ASD spectroscopy software.',
     #long_description=long_description,
     url='https://github.com/kathleenhoza/autoasd',  # Optional
@@ -24,7 +24,7 @@ setup(
     packages=['autoasd'],  # Required
 
     package_data={
-        'autoasd': ['img/*','img2/*']
+        'autoasd': ['img/*','img2/*','spectralon_data/*']
     },
 
     install_requires=['pywinauto','pyautogui'],
