@@ -469,8 +469,10 @@ class ViewSpecProController:
             try:
                 self.app['Dialog'].OKButton.click()
             except:
-                while 'Dialog' not in self.app:
+                timeout=600
+                while 'Dialog' not in self.app and timeout>0:
                     time.sleep(10)
+                    timeout-=10
                 self.app['Dialog'].OKButton.click()
         
         
