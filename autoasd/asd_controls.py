@@ -435,10 +435,17 @@ class ViewSpecProController:
             self.app['ViewSpecPro'].button1.click_input()
         except:
             print('Could not find dialog. Retrying')
-            time.sleep(delay)
-            self.app['ViewSpecPro'].set_focus()
-            self.app['ViewSpecPro'].button1.draw_outline()
-            self.app['ViewSpecPro'].button1.click_input()
+            tries_remaining=100
+            while tries_remaining>0:
+                time.sleep(5)
+                try:
+                    self.app['ViewSpecPro'].set_focus()
+                    self.app['ViewSpecPro'].button1.draw_outline()
+                    self.app['ViewSpecPro'].button1.click_input()
+                except:
+                    print('Could not find dialog. Retrying')
+                    tries_remaining-=1
+                
         
     def ascii_export(self, path, tsv_name):
         print('Doing ASCII export.')
