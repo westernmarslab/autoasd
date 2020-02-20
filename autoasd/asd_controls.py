@@ -388,9 +388,19 @@ class ViewSpecProController:
         print('setting save directory')
         print(path)
         dict=self.spec.menu().get_properties()
+        print(dict)
         output_text=dict['menu_items'][3]['menu_items']['menu_items'][1]['text']
+        print(output_text)
         self.spec.menu_select('Setup -> '+output_text)
-        save=self.app['New Directory Path']
+        print('next')
+        timeout=30
+        save=None
+        while timeout>0 and save==None:
+            try:
+                save=self.app['New Directory Path']
+            except:
+                time.sleep(3)
+                timeout-=3
         path_el=path.split('\\')
 
         if path_el[0].upper()=='C:':
@@ -403,8 +413,9 @@ class ViewSpecProController:
                         save.ListBox.select('C:\\')
                 else:
                     save.ListBox.select(el)
-                #print('Selected '+el)
+                print('Selecting '+el)
                 self.select_item(save.ListBox.rectangle())
+                print('Done')
         else:
             print('Invalid directory (must save to C drive)')
             # path_el=['C:\\','Users','RS3Admin','Temp']
@@ -412,6 +423,7 @@ class ViewSpecProController:
             #     save.ListBox.select(el)
             #     self.select_item(save.ListBox.rectangle())
         save.OKButton.click()
+        print('Clicked ok.')
         #If a dialog box comes up asking if you want to set the default input directory the same as the output, click no. Not sure if there is a different dialog box that could come up, so this doesn't seem very robust.
         try:
             self.app['Dialog'].Button2.click()
@@ -442,6 +454,7 @@ class ViewSpecProController:
                     self.app['ViewSpecPro'].set_focus()
                     self.app['ViewSpecPro'].button1.draw_outline()
                     self.app['ViewSpecPro'].button1.click_input()
+                    tries_remaining=-1
                 except:
                     print('Could not find dialog. Retrying')
                     tries_remaining-=1
@@ -501,8 +514,9 @@ class ViewSpecProController:
         while y<rectangle.bottom:
             if pyautogui.pixelMatchesColor(x,y,COLORS['file_highlight']):
                 pyautogui.click(x=x,y=y, clicks=2)
+                print('click')
                 return
-            y=y+5
+            y=y+3
 
 class RS3Menu:
 
